@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MeetingHub - Quản lý lịch phòng họp</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+  </head>
+  <body>
+    <section class="login-screen" id="loginScreen">
+      <form class="login-card" id="loginForm">
+        <div class="brand-mark">M</div>
+        <p class="kicker">MeetingHub</p>
+        <h1>Quản lý lịch phòng họp</h1>
+        <p class="muted">
+          Đăng nhập bằng Google bằng tài khoản quản trị để đặt lịch, hủy lịch
+          và theo dõi phòng họp theo ngày.
+        </p>
+
+        <div class="google-button-wrap" id="googleSignInButton"></div>
+        <p class="error" id="loginError"></p>
+      </form>
+    </section>
+
+    <main class="app hidden" id="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">M</div>
+          <strong>MeetingHub</strong>
+        </div>
+        <nav class="nav-list" aria-label="Điều hướng">
+          <button class="nav-item active" type="button" data-view="calendar">
+            <span>L</span>
+            Lịch phòng họp
+          </button>
+          <button class="nav-item" type="button" data-view="settings">
+            <span>C</span>
+            Cấu hình Sheet
+          </button>
+        </nav>
+        <div class="sidebar-footer">
+          <button class="nav-item danger" id="logoutButton" type="button">
+            <span>Đ</span>
+            Đăng xuất
+          </button>
+        </div>
+      </aside>
+
+      <section class="main-panel">
+        <header class="topbar">
+          <div class="search-box">
+            <span>Tìm</span>
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Tìm chủ đề, người đặt..."
+            />
+          </div>
+          <div class="user-pill">
+            <span id="syncState">Đang dùng bộ nhớ trình duyệt</span>
+            <div class="avatar" id="avatarText">U</div>
+            <div>
+              <strong id="userEmail"></strong>
+              <small>Nhân viên</small>
+            </div>
+          </div>
+        </header>
+
+        <section class="page page-calendar" id="calendarView">
+          <div class="page-heading">
+            <div>
+              <h1>Lịch đặt phòng</h1>
+              <p>Quản lý lịch phòng họp duy nhất của công ty theo từng ngày.</p>
+            </div>
+            <div class="heading-actions">
+              <button class="button secondary" id="exportExcelButton" type="button">
+                Xuất Excel
+              </button>
+              <button class="button primary" id="openBookingModal" type="button">
+                + Đặt lịch mới
+              </button>
+            </div>
+          </div>
+
+          <section class="control-card">
+            <div class="control-group">
+              <label for="roomFilter">Phòng họp</label>
+              <select id="roomFilter"></select>
+            </div>
+
+            <div class="date-nav">
+              <button class="icon-button" id="prevDay" type="button" aria-label="Ngày trước">
+                &lt;
+              </button>
+              <div class="date-chip">
+                <span>Ngày</span>
+                <strong id="selectedDateLabel"></strong>
+              </div>
+              <button class="icon-button" id="nextDay" type="button" aria-label="Ngày sau">
+                &gt;
+              </button>
+              <button class="button secondary" id="todayButton" type="button">
+                Hôm nay
+              </button>
+            </div>
+
+            <div class="stat-line">
+              <span id="bookingCount">0 lịch</span>
+            </div>
+          </section>
+
+          <div class="content-grid">
+            <aside class="summary-column">
+              <section class="mini-card">
+                <h2>Tổng quan</h2>
+                <div class="metric-row">
+                  <span>Tổng lịch</span>
+                  <strong id="totalMetric">0</strong>
+                </div>
+                <div class="metric-row">
+                  <span>Sắp diễn ra</span>
+                  <strong id="upcomingMetric">0</strong>
+                </div>
+                <div class="metric-row">
+                  <span>Đã hủy</span>
+                  <strong id="cancelledMetric">0</strong>
+                </div>
+              </section>
+
+              <section class="mini-card">
+                <h2>Nhật ký thông báo</h2>
+                <div class="activity-list" id="activityList"></div>
+              </section>
+            </aside>
+
+            <section class="calendar-card">
+              <div class="calendar-grid" id="calendarGrid"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="page hidden" id="settingsView">
+          <div class="page-heading">
+            <div>
+              <h1>Cấu hình Google Sheet</h1>
+              <p>
+                Chỉ lưu Web App URL của Apps Script. Link Google Sheet được ẩn để tránh lộ file dữ liệu.
+              </p>
+            </div>
+          </div>
+
+          <form class="settings-card" id="settingsForm">
+            <label for="scriptUrl">Google Apps Script Web App URL</label>
+            <input
+              id="scriptUrl"
+              name="scriptUrl"
+              type="url"
+              placeholder="https://script.google.com/macros/s/.../exec"
+            />
+            <p class="helper">
+              Apps Script phải được gắn trực tiếp với Google Sheet dùng làm dữ liệu. Để trống nếu muốn dùng localStorage.
+            </p>
+
+            <button class="button primary" type="submit">Lưu cấu hình</button>
+            <p class="success" id="settingsMessage"></p>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <div class="modal hidden" id="bookingModal" role="dialog" aria-modal="true">
+      <div class="modal-backdrop" data-close-modal></div>
+      <form class="modal-card" id="bookingForm">
+        <div class="modal-header">
+          <h2>Đặt lịch phòng họp</h2>
+          <button class="icon-button" type="button" data-close-modal>
+            &times;
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <label for="topicInput">Chủ đề *</label>
+          <input
+            id="topicInput"
+            name="topic"
+            type="text"
+            maxlength="100"
+            required
+          />
+
+          <label for="roomInput">Phòng họp *</label>
+          <select id="roomInput" name="room" required></select>
+
+          <div class="two-cols">
+            <div>
+              <label for="dateInput">Ngày *</label>
+              <input id="dateInput" name="date" type="date" required />
+            </div>
+            <div>
+              <label for="ownerInput">Người đặt</label>
+              <input id="ownerInput" name="owner" type="email" readonly />
+            </div>
+          </div>
+
+          <div class="two-cols">
+            <div>
+              <label for="startInput">Bắt đầu *</label>
+              <select id="startInput" name="startTime" required></select>
+            </div>
+            <div>
+              <label for="endInput">Kết thúc *</label>
+              <select id="endInput" name="endTime" required></select>
+            </div>
+          </div>
+
+          <label for="noteInput">Ghi chú</label>
+          <textarea
+            id="noteInput"
+            name="note"
+            rows="3"
+            maxlength="240"
+          ></textarea>
+
+          <p class="error" id="bookingError"></p>
+        </div>
+
+        <div class="modal-footer">
+          <button class="button secondary" type="button" data-close-modal>
+            Hủy
+          </button>
+          <button class="button primary" type="submit">
+            Xác nhận đặt lịch
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
