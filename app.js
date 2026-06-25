@@ -539,6 +539,7 @@ async function cancelBooking(booking) {
   await sheetRequest({
     action: "cancel",
     id: booking.id,
+    booking,
     userEmail: state.user,
   });
 }

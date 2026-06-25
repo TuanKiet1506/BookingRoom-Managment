@@ -46,6 +46,12 @@ function doPost(e) {
       return json({ ok: true });
     }
 
+    if (payload.action === "markTelegram") {
+      validateAdminEmail(payload.userEmail);
+      markTelegramStatus(payload.id, payload.telegramStatus);
+      return json({ ok: true });
+    }
+
     return json({ ok: false, error: "Unknown action" });
   } catch (error) {
     return json({ ok: false, error: String(error.message || error) });
@@ -139,6 +145,22 @@ function cancelBooking(id, userEmail) {
       sheet.getRange(row + 1, statusColumn + 1).setValue("CANCELLED");
       sheet.getRange(row + 1, cancelledAtColumn + 1).setValue(new Date().toISOString());
       sheet.getRange(row + 1, cancelledByColumn + 1).setValue(userEmail);
+      return;
+    }
+  }
+
+  throw new Error("Booking not found");
+}
+
+function markTelegramStatus(id, telegramStatus) {
+  const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
+  const values = sheet.getDataRange().getValues();
+  const idColumn = HEADERS.indexOf("id");
+  const telegramStatusColumn = HEADERS.indexOf("telegramStatus");
+
+  for (let row = 1; row < values.length; row += 1) {
+    if (values[row][idColumn] === id) {
+      sheet.getRange(row + 1, telegramStatusColumn + 1).setValue(telegramStatus || "REMINDED_1H");
       return;
     }
   }

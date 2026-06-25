@@ -13,6 +13,9 @@ Khi chạy trên Vercel, cấu hình các biến môi trường:
 - `GOOGLE_CLIENT_ID`: OAuth 2.0 Web Client ID của Google.
 - `SESSION_SECRET`: chuỗi bí mật dùng để ký phiên đăng nhập.
 - `GOOGLE_APPS_SCRIPT_URL`: Web App URL `/exec` của Apps Script.
+- `TELEGRAM_BOT_TOKEN`: token bot Telegram lấy từ BotFather.
+- `TELEGRAM_CHAT_ID`: ID group Telegram nhận thông báo.
+- `CRON_SECRET`: chuỗi bí mật dùng để test cron thủ công.
 
 Trong Google Cloud Console, thêm domain Vercel vào `Authorized JavaScript origins`.
 Khi chạy local, thêm origin local tương ứng, ví dụ `http://localhost:3000`.
@@ -51,6 +54,7 @@ Cột dữ liệu được tạo:
 - Chặn lịch bị trùng khung giờ ở frontend và Apps Script.
 - Mọi tài khoản nhân viên đều có thể hủy lịch bất kỳ.
 - Ghi nhật ký nội dung thông báo đặt/hủy lịch để kết nối Telegram sau.
+- Gửi Telegram khi đặt lịch, hủy lịch và nhắc trước giờ họp khoảng 1 giờ.
 - Đồng bộ Google Sheet nếu có Web App URL, fallback localStorage nếu chưa có.
 - Tự động xóa toàn bộ dòng dữ liệu trong tab `Bookings` vào ngày 01/01 hằng năm,
   giữ lại dòng tiêu đề cột.
