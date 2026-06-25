@@ -10,37 +10,26 @@
   <body>
     <section class="login-screen" id="loginScreen">
       <form class="login-card" id="loginForm">
-        <div class="login-brand-row">
-          <div class="brand-mark">M</div>
-          <div>
-            <p class="kicker">MeetingHub</p>
-            <small>Quyền truy cập quản trị</small>
-          </div>
-        </div>
-        <h1>Quản lý lịch phòng họp</h1>
+        <p class="kicker">Hệ thống nội bộ</p>
+        <h1>Chào mừng trở lại 👋</h1>
         <p class="muted">
-          Đăng nhập bằng Google bằng tài khoản quản trị để đặt lịch, hủy lịch
-          và theo dõi phòng họp theo ngày.
+          Đăng nhập để vào bảng quản lý lịch phòng họp MeetingHub.
         </p>
 
         <section class="auth-panel">
-          <div class="auth-copy">
-            <span class="auth-badge">G</span>
-            <div>
-              <strong>Đăng nhập với Google</strong>
-              <small>Chỉ admin@khomes.com.vn được phép truy cập</small>
-            </div>
-          </div>
           <div class="google-button-shell">
-            <div class="google-button-label">
-              <strong>Tiếp tục xác thực</strong>
-              <small>Nhấn biểu tượng Google để mở hộp đăng nhập</small>
-            </div>
             <div class="google-button-wrap" id="googleSignInButton"></div>
+          </div>
+          <div class="auth-copy">
+            <span class="auth-badge">✓</span>
+            <div>
+              <strong>Chỉ admin@khomes.com.vn được phép truy cập.</strong>
+            </div>
           </div>
         </section>
         <p class="error" id="loginError"></p>
       </form>
+      <p class="login-footer">© 2026 MeetingHub — K-Homes</p>
     </section>
 
     <main class="app hidden" id="app">

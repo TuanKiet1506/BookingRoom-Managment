@@ -20,12 +20,20 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    const safePayload = {
+      ...payload,
+      userEmail: session.email,
+    };
+    if (safePayload.booking) {
+      safePayload.booking = {
+        ...safePayload.booking,
+        ownerEmail: session.email,
+      };
+    }
+
     const response = await fetch(targetScriptUrl, {
       method: "POST",
-      body: JSON.stringify({
-        ...payload,
-        userEmail: session.email,
-      }),
+      body: JSON.stringify(safePayload),
     });
     const text = await response.text();
 

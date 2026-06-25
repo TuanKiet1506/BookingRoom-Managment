@@ -32,7 +32,8 @@ function doPost(e) {
     }
 
     if (payload.action === "create") {
-      validateAdminEmail(payload.booking.ownerEmail);
+      validateAdminEmail(payload.userEmail || payload.booking.ownerEmail);
+      payload.booking.ownerEmail = ADMIN_EMAIL;
       assertNoConflict(payload.booking);
       appendBooking(payload.booking);
       return json({ ok: true });
@@ -40,7 +41,7 @@ function doPost(e) {
 
     if (payload.action === "cancel") {
       validateAdminEmail(payload.userEmail);
-      cancelBooking(payload.id, payload.userEmail);
+      cancelBooking(payload.id, ADMIN_EMAIL);
       return json({ ok: true });
     }
 
