@@ -34,6 +34,7 @@ function doPost(e) {
     if (payload.action === "create") {
       validateAdminEmail(payload.userEmail || payload.booking.ownerEmail);
       payload.booking.ownerEmail = ADMIN_EMAIL;
+      assertNotPastDate(payload.booking.date);
       assertNoConflict(payload.booking);
       appendBooking(payload.booking);
       return json({ ok: true });
@@ -158,6 +159,14 @@ function assertNoConflict(booking) {
 
   if (conflict) {
     throw new Error(`Conflict with ${conflict.topic} (${conflict.startTime}-${conflict.endTime})`);
+  }
+}
+
+function assertNotPastDate(dateValue) {
+  const bookingDate = normalizeSheetValue("date", dateValue);
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+  if (!bookingDate || bookingDate < today) {
+    throw new Error("Cannot book past date");
   }
 }
 

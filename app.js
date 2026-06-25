@@ -151,6 +151,7 @@ function fillStaticControls() {
   els.startInput.value = "09:00";
   els.endInput.value = "10:00";
   els.dateInput.value = state.selectedDate;
+  els.dateInput.min = todayISO();
 }
 
 function bindEvents() {
@@ -309,7 +310,9 @@ async function handleCalendarAction(event) {
 
 function openBookingModal() {
   els.bookingForm.reset();
-  els.dateInput.value = state.selectedDate;
+  const minDate = todayISO();
+  els.dateInput.min = minDate;
+  els.dateInput.value = state.selectedDate < minDate ? minDate : state.selectedDate;
   els.ownerInput.value = state.user;
   els.roomInput.value = DEFAULT_ROOMS[0];
   els.startInput.value = "09:00";
@@ -487,6 +490,7 @@ function filteredBookings() {
 
 function validateBooking(booking) {
   if (!booking.topic) return "Vui lòng nhập chủ đề.";
+  if (booking.date < todayISO()) return "Không thể đặt lịch cho ngày trong quá khứ.";
   if (booking.startTime >= booking.endTime)
     return "Giờ kết thúc phải sau giờ bắt đầu.";
 
@@ -567,6 +571,9 @@ function formatErrorMessage(error) {
   }
   if (message.includes("Company email only") || message.includes("Admin account only")) {
     return "tài khoản đăng nhập không có quyền truy cập.";
+  }
+  if (message.includes("Cannot book past date")) {
+    return "không thể đặt lịch cho ngày trong quá khứ.";
   }
   return message;
 }
