@@ -22,6 +22,17 @@ Khi chạy local, thêm origin local tương ứng, ví dụ `http://localhost:3
 
 Nếu chưa cấu hình Google Sheet, web sẽ lưu tạm bằng `localStorage`.
 
+## Nhắc lịch Telegram
+
+Endpoint nhắc lịch trước 1 giờ:
+
+`/api/cron/reminders?secret=CRON_SECRET`
+
+Vercel Hobby chỉ cho Cron Job chạy 1 lần/ngày, nên không phù hợp để nhắc lịch
+trước 1 giờ. Hãy dùng một dịch vụ cron ngoài như cron-job.org/UptimeRobot gọi
+endpoint trên mỗi 5 phút, hoặc nâng Vercel Pro rồi thêm cron `*/5 * * * *` vào
+`vercel.json`.
+
 ## Lưu Google Sheet
 
 1. Mở Google Sheet lưu dữ liệu:
