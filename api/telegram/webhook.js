@@ -17,7 +17,7 @@ module.exports = async function handler(req, res) {
     }
 
     const chatId = String(message.chat.id);
-    if (!isAllowedChat(chatId)) {
+    if (!isAllowedChat(chatId, message.chat.type)) {
       res.status(200).json({ ok: true, ignored: true });
       return;
     }
@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const responseText = await handleCommand(command);
+    const responseText = await handleCommand(command, chatId);
     await sendTelegramMessage(responseText, chatId);
     res.status(200).json({ ok: true, command });
   } catch (error) {
@@ -37,22 +37,23 @@ module.exports = async function handler(req, res) {
   }
 };
 
-function isAllowedChat(chatId) {
+function isAllowedChat(chatId, chatType) {
   const allowedChatId = String(process.env.TELEGRAM_CHAT_ID || "");
-  return Boolean(allowedChatId && chatId === allowedChatId);
+  return chatType === "private" || Boolean(allowedChatId && chatId === allowedChatId);
 }
 
 function parseCommand(text) {
   const firstToken = String(text || "").trim().split(/\s+/)[0] || "";
   const command = firstToken.split("@")[0].toLowerCase();
-  if (["/help", "/today", "/tomorrow", "/upcoming"].includes(command)) {
+  if (["/help", "/today", "/tomorrow", "/upcoming", "/id"].includes(command)) {
     return command;
   }
   return "";
 }
 
-async function handleCommand(command) {
+async function handleCommand(command, chatId) {
   if (command === "/help") return helpMessage();
+  if (command === "/id") return `Chat ID: ${chatId}`;
   if (command === "/today") return bookingsForDateMessage("Lịch họp hôm nay", todayISO());
   if (command === "/tomorrow") return bookingsForDateMessage("Lịch họp ngày mai", addDays(todayISO(), 1));
   if (command === "/upcoming") return upcomingMessage();
