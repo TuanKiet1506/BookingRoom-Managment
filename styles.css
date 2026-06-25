@@ -171,19 +171,47 @@ p {
   display: grid;
   min-height: 100vh;
   place-items: center;
-  padding: 22px;
+  padding: 24px;
   background:
-    radial-gradient(circle at top left, rgba(34, 197, 94, 0.16), transparent 32%),
+    radial-gradient(circle at 18% 8%, rgba(34, 197, 94, 0.16), transparent 34%),
+    radial-gradient(circle at 88% 92%, rgba(59, 130, 246, 0.1), transparent 30%),
     var(--bg);
 }
 
 .login-card {
-  width: min(430px, 100%);
-  border: 1px solid var(--border-soft);
-  border-radius: 12px;
-  padding: 30px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  position: relative;
+  width: min(540px, 100%);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 38px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 42%),
+    var(--panel);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
+}
+
+.login-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.login-brand-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 26px;
+}
+
+.login-brand-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .brand-mark {
@@ -197,24 +225,111 @@ p {
   font-weight: 900;
 }
 
+.login-brand-row .brand-mark {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary), #38bdf8);
+  box-shadow: 0 14px 28px rgba(34, 197, 94, 0.24);
+}
+
 .kicker {
-  margin: 18px 0 8px;
+  margin: 0 0 4px;
   color: var(--primary);
   font-size: 0.82rem;
   font-weight: 900;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .login-card h1 {
-  margin-bottom: 10px;
-  font-size: 2rem;
-  line-height: 1.05;
+  position: relative;
+  max-width: 12ch;
+  margin-bottom: 12px;
+  font-size: clamp(2.1rem, 7vw, 3.1rem);
+  line-height: 0.98;
+}
+
+.login-card > .muted {
+  position: relative;
+  margin-bottom: 26px;
+  color: #cbd5e1;
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+.auth-panel {
+  position: relative;
+  display: grid;
+  gap: 16px;
+}
+
+.auth-copy {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-copy strong,
+.auth-copy small {
+  display: block;
+}
+
+.auth-copy strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.auth-copy small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.auth-badge {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #2563eb;
+  font-weight: 900;
+}
+
+.google-button-shell {
+  display: grid;
+  min-height: 58px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(10, 10, 10, 0.52);
+  padding: 8px;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.google-button-shell:hover {
+  border-color: rgba(34, 197, 94, 0.34);
+  background: rgba(10, 10, 10, 0.68);
+  transform: translateY(-1px);
 }
 
 .google-button-wrap {
-  display: grid;
-  min-height: 44px;
-  margin-top: 20px;
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  justify-content: center;
+}
+
+.google-button-wrap > div {
+  max-width: 100%;
+}
+
+.google-button-wrap iframe {
+  max-width: 100%;
+  border-radius: 999px !important;
 }
 
 .app {

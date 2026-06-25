@@ -10,15 +10,31 @@
   <body>
     <section class="login-screen" id="loginScreen">
       <form class="login-card" id="loginForm">
-        <div class="brand-mark">M</div>
-        <p class="kicker">MeetingHub</p>
+        <div class="login-brand-row">
+          <div class="brand-mark">M</div>
+          <div>
+            <p class="kicker">MeetingHub</p>
+            <small>Quyền truy cập quản trị</small>
+          </div>
+        </div>
         <h1>Quản lý lịch phòng họp</h1>
         <p class="muted">
           Đăng nhập bằng Google bằng tài khoản quản trị để đặt lịch, hủy lịch
           và theo dõi phòng họp theo ngày.
         </p>
 
-        <div class="google-button-wrap" id="googleSignInButton"></div>
+        <section class="auth-panel">
+          <div class="auth-copy">
+            <span class="auth-badge">G</span>
+            <div>
+              <strong>Đăng nhập với Google</strong>
+              <small>Chỉ admin@khomes.com.vn được phép truy cập</small>
+            </div>
+          </div>
+          <div class="google-button-shell">
+            <div class="google-button-wrap" id="googleSignInButton"></div>
+          </div>
+        </section>
         <p class="error" id="loginError"></p>
       </form>
     </section>
