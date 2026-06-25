@@ -116,18 +116,11 @@ function initGoogleSignIn() {
       client_id: state.googleClientId,
       callback: handleGoogleCredential,
     });
-    const buttonWidth = Math.min(
-      400,
-      Math.max(280, els.googleSignInButton.parentElement.clientWidth - 2),
-    );
-
     window.google.accounts.id.renderButton(els.googleSignInButton, {
+      type: "icon",
       theme: "filled_black",
       size: "large",
-      text: "signin_with",
-      shape: "pill",
-      logo_alignment: "left",
-      width: buttonWidth,
+      shape: "circle",
     });
   };
 
