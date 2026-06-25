@@ -2,6 +2,10 @@ const {
   bookingReminderMessage,
   sendTelegramMessage,
 } = require("../_telegram");
+const {
+  listBookings,
+  markTelegramStatus,
+} = require("../_appsScript");
 
 const ADMIN_EMAIL = "admin@khomes.com.vn";
 const REMINDED_STATUS = "REMINDED_1H";
@@ -18,8 +22,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const scriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL || "";
-  if (!scriptUrl) {
+  if (!process.env.GOOGLE_APPS_SCRIPT_URL) {
     res.status(500).json({
       ok: false,
       error: "Missing GOOGLE_APPS_SCRIPT_URL",
@@ -30,14 +33,14 @@ module.exports = async function handler(req, res) {
 
   try {
     const dates = getReminderDates();
-    const bookings = (await Promise.all(dates.map((date) => listBookings(scriptUrl, date))))
+    const bookings = (await Promise.all(dates.map((date) => listBookings(date))))
       .flat()
       .filter(shouldSendReminder);
 
     const sent = [];
     for (const booking of bookings) {
       await sendTelegramMessage(bookingReminderMessage(booking));
-      await markReminderSent(scriptUrl, booking.id);
+      await markTelegramStatus(booking.id, REMINDED_STATUS, ADMIN_EMAIL);
       sent.push(booking.id);
     }
 
@@ -60,41 +63,6 @@ function isAuthorizedCron(req) {
     (secret && querySecret === secret) ||
       userAgent.includes("vercel-cron/1.0"),
   );
-}
-
-async function listBookings(scriptUrl, date) {
-  const result = await callAppsScript(scriptUrl, {
-    action: "list",
-    date,
-  });
-  return result.bookings || [];
-}
-
-async function markReminderSent(scriptUrl, id) {
-  await callAppsScript(scriptUrl, {
-    action: "markTelegram",
-    id,
-    telegramStatus: REMINDED_STATUS,
-    userEmail: ADMIN_EMAIL,
-  });
-}
-
-async function callAppsScript(scriptUrl, payload) {
-  const response = await fetch(scriptUrl, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  const text = await response.text();
-  let result;
-  try {
-    result = JSON.parse(text);
-  } catch {
-    throw new Error(`Apps Script did not return JSON: ${text.slice(0, 120)}`);
-  }
-  if (!response.ok || !result.ok) {
-    throw new Error(result.error || `${response.status} ${response.statusText}`);
-  }
-  return result;
 }
 
 function shouldSendReminder(booking) {

@@ -10,15 +10,16 @@ function hasTelegramConfig() {
   return Boolean(token && chatId);
 }
 
-async function sendTelegramMessage(text) {
+async function sendTelegramMessage(text, targetChatId) {
   const { token, chatId } = getTelegramConfig();
-  if (!token || !chatId) return { ok: false, skipped: true };
+  const destination = targetChatId || chatId;
+  if (!token || !destination) return { ok: false, skipped: true };
 
   const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      chat_id: chatId,
+      chat_id: destination,
       text,
       disable_web_page_preview: true,
     }),

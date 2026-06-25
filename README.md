@@ -33,6 +33,23 @@ trước 1 giờ. Hãy dùng một dịch vụ cron ngoài như cron-job.org/Upt
 endpoint trên mỗi 5 phút, hoặc nâng Vercel Pro rồi thêm cron `*/5 * * * *` vào
 `vercel.json`.
 
+## Lệnh Telegram Bot
+
+Webhook nhận lệnh:
+
+`/api/telegram/webhook`
+
+Sau khi deploy, cấu hình webhook cho Telegram:
+
+`https://api.telegram.org/botTELEGRAM_BOT_TOKEN/setWebhook?url=https://booking-room-managment.vercel.app/api/telegram/webhook`
+
+Các lệnh đang hỗ trợ:
+
+- `/help`
+- `/today`
+- `/tomorrow`
+- `/upcoming`
+
 ## Lưu Google Sheet
 
 1. Mở Google Sheet lưu dữ liệu:
