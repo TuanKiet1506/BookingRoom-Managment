@@ -32,6 +32,32 @@ async function sendTelegramMessage(text, targetChatId) {
   return result;
 }
 
+async function sendTelegramPhoto(imageBuffer, options = {}) {
+  const { token, chatId } = getTelegramConfig();
+  const destination = options.chatId || chatId;
+  if (!token || !destination) return { ok: false, skipped: true };
+
+  const form = new FormData();
+  form.append("chat_id", destination);
+  if (options.caption) form.append("caption", options.caption);
+  form.append(
+    "photo",
+    new Blob([imageBuffer], { type: "image/png" }),
+    options.filename || "weekly-schedule.png",
+  );
+
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+    method: "POST",
+    body: form,
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.ok) {
+    throw new Error(result.description || "Telegram sendPhoto failed");
+  }
+  return result;
+}
+
 function formatBookingDate(booking) {
   const value = booking?.date || "";
   if (!value) return "";
@@ -78,4 +104,5 @@ module.exports = {
   bookingReminderMessage,
   hasTelegramConfig,
   sendTelegramMessage,
+  sendTelegramPhoto,
 };

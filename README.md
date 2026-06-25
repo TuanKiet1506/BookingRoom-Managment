@@ -33,6 +33,13 @@ trước 1 giờ. Hãy dùng một dịch vụ cron ngoài như cron-job.org/Upt
 endpoint trên mỗi 5 phút, hoặc nâng Vercel Pro rồi thêm cron `*/5 * * * *` vào
 `vercel.json`.
 
+Endpoint gửi ảnh lịch 7 ngày tới:
+
+`/api/cron/weekly-snapshot?secret=CRON_SECRET`
+
+File `vercel.json` đang cấu hình endpoint này chạy lúc 23:00 UTC mỗi ngày,
+tương ứng 06:00 sáng theo giờ Việt Nam.
+
 ## Lệnh Telegram Bot
 
 Webhook nhận lệnh:
