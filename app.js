@@ -122,7 +122,7 @@ function initGoogleSignIn() {
     );
 
     window.google.accounts.id.renderButton(els.googleSignInButton, {
-      theme: "outline",
+      theme: "filled_black",
       size: "large",
       text: "signin_with",
       shape: "pill",
