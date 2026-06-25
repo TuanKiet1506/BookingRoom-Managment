@@ -1,10 +1,9 @@
-const sharp = require("sharp");
+const chromium = require("@sparticuz/chromium");
+const puppeteer = require("puppeteer-core");
 const { listBookings } = require("../_appsScript");
 const { sendTelegramPhoto } = require("../_telegram");
 
 const TIME_ZONE = "Asia/Saigon";
-const WIDTH = 1200;
-const CARD_HEIGHT = 164;
 
 module.exports = async function handler(req, res) {
   if (req.method !== "GET") {
@@ -17,11 +16,24 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  let browser;
   try {
     const startDate = todayISO();
     const dates = Array.from({ length: 7 }, (_, index) => addDays(startDate, index));
     const bookingsByDate = await loadWeekBookings(dates);
-    const image = await renderWeeklyScheduleImage(dates, bookingsByDate);
+    const html = renderSnapshotHtml(dates, bookingsByDate);
+
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: { width: 1400, height: 1600, deviceScaleFactor: 1 },
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    });
+
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const element = await page.$("#snapshot");
+    const image = await element.screenshot({ type: "png" });
 
     await sendTelegramPhoto(image, {
       caption: `Lịch phòng họp 7 ngày tới (${formatDateRange(dates)})`,
@@ -31,6 +43,7 @@ module.exports = async function handler(req, res) {
     res.status(200).json({
       ok: true,
       sent: true,
+      renderer: "chromium",
       dates,
       total: Object.values(bookingsByDate).flat().length,
     });
@@ -39,6 +52,8 @@ module.exports = async function handler(req, res) {
       ok: false,
       error: String(error.message || error),
     });
+  } finally {
+    if (browser) await browser.close();
   }
 };
 
@@ -52,13 +67,7 @@ async function loadWeekBookings(dates) {
   }, {});
 }
 
-async function renderWeeklyScheduleImage(dates, bookingsByDate) {
-  const height = 238 + dates.length * CARD_HEIGHT;
-  const svg = renderSvg(dates, bookingsByDate, height);
-  return sharp(Buffer.from(svg)).png().toBuffer();
-}
-
-function renderSvg(dates, bookingsByDate, height) {
+function renderSnapshotHtml(dates, bookingsByDate) {
   const generatedAt = new Intl.DateTimeFormat("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -68,46 +77,225 @@ function renderSvg(dates, bookingsByDate, height) {
     timeZone: TIME_ZONE,
   }).format(new Date());
 
-  const cards = dates.map((date, index) => {
-    const y = 182 + index * CARD_HEIGHT;
-    return renderDayCard(date, bookingsByDate[date] || [], y);
-  }).join("");
-
-  return `
-<svg width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${WIDTH}" height="${height}" fill="#F6F8FC"/>
-  <rect x="48" y="42" width="1104" height="${height - 84}" rx="34" fill="#FFFFFF" stroke="#DFE7F3"/>
-  <text x="86" y="104" fill="#102458" font-family="Arial, sans-serif" font-size="42" font-weight="800">Lịch phòng họp 7 ngày tới</text>
-  <text x="86" y="142" fill="#7280A3" font-family="Arial, sans-serif" font-size="22">Cập nhật lúc ${escapeXml(generatedAt)} • MeetingHub</text>
-  ${cards}
-</svg>`;
+  return `<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0a0a0a;
+      color: #fafafa;
+      font-family: Inter, Arial, "Helvetica Neue", sans-serif;
+    }
+    #snapshot {
+      width: 1360px;
+      min-height: 1520px;
+      background:
+        radial-gradient(circle at 16% 0%, rgba(34, 197, 94, 0.12), transparent 34%),
+        linear-gradient(180deg, rgba(255,255,255,0.035), transparent 280px),
+        #0a0a0a;
+      padding: 34px;
+    }
+    .shell {
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      background: #171717;
+      box-shadow: 0 22px 70px rgba(0,0,0,0.38);
+      overflow: hidden;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 76px;
+      padding: 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(23,23,23,0.96);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      border-radius: 9px;
+      background: #22c55e;
+      color: #04120a;
+      font-weight: 900;
+    }
+    .brand strong { color: #22c55e; font-size: 24px; }
+    .sync {
+      color: #a3a3a3;
+      font-size: 16px;
+    }
+    .content { padding: 30px; }
+    .heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 22px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      line-height: 1.1;
+    }
+    .heading p {
+      margin: 0;
+      color: #a3a3a3;
+      font-size: 17px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 46px;
+      border: 1px solid #262626;
+      border-radius: 8px;
+      background: #262626;
+      padding: 0 16px;
+      color: #a3a3a3;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .week-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      background: #171717;
+      overflow: hidden;
+    }
+    .day {
+      min-height: 1120px;
+      border-right: 1px solid rgba(38,38,38,0.9);
+      background: #171717;
+    }
+    .day:last-child { border-right: 0; }
+    .day-head {
+      min-height: 88px;
+      border-bottom: 1px solid rgba(38,38,38,0.9);
+      background: #262626;
+      padding: 14px 12px;
+      text-align: center;
+    }
+    .day-head strong {
+      display: block;
+      font-size: 18px;
+      color: #fafafa;
+      line-height: 1.25;
+    }
+    .day-head span {
+      display: block;
+      margin-top: 5px;
+      color: #a3a3a3;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .day-body {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+    }
+    .booking {
+      display: grid;
+      gap: 5px;
+      min-height: 104px;
+      border: 1px solid rgba(59,130,246,0.68);
+      border-left: 4px solid #3b82f6;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(34,197,94,0.08));
+      color: #dbeafe;
+      padding: 10px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.22);
+    }
+    .booking time {
+      color: rgba(250,250,250,0.72);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .booking strong {
+      color: #fafafa;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+    .booking small {
+      color: rgba(250,250,250,0.72);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .empty {
+      display: grid;
+      min-height: 220px;
+      place-items: center;
+      color: #737373;
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.45;
+      border: 1px dashed rgba(255,255,255,0.08);
+      border-radius: 8px;
+    }
+    .footer {
+      margin-top: 18px;
+      color: #737373;
+      font-size: 14px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <main id="snapshot">
+    <section class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="mark">M</div>
+          <strong>MeetingHub</strong>
+        </div>
+        <div class="sync">Đang đồng bộ Google Sheet</div>
+      </header>
+      <section class="content">
+        <div class="heading">
+          <div>
+            <h1>Lịch phòng họp 7 ngày tới</h1>
+            <p>Ảnh chụp tự động từ dữ liệu đặt phòng họp • Cập nhật lúc ${escapeHtml(generatedAt)}</p>
+          </div>
+          <div class="pill">${escapeHtml(formatDateRange(dates))}</div>
+        </div>
+        <section class="week-grid">
+          ${dates.map((date) => renderDayColumn(date, bookingsByDate[date] || [])).join("")}
+        </section>
+        <div class="footer">MeetingHub — K-Homes</div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>`;
 }
 
-function renderDayCard(date, bookings, y) {
-  const activeCount = bookings.length;
-  const rows = bookings.slice(0, 3);
-  const overflow = activeCount - rows.length;
-  const rowSvg = rows.length
-    ? rows.map((booking, index) => renderBookingRow(booking, y + 56 + index * 32)).join("")
-    : `<text x="332" y="${y + 92}" fill="#94A3B8" font-family="Arial, sans-serif" font-size="22">Không có lịch họp</text>`;
-  const overflowSvg = overflow > 0
-    ? `<text x="332" y="${y + 154}" fill="#64748B" font-family="Arial, sans-serif" font-size="19">+${overflow} lịch khác</text>`
-    : "";
-
-  return `
-  <rect x="86" y="${y}" width="1028" height="136" rx="22" fill="#F8FBFF" stroke="#E2E8F0"/>
-  <text x="122" y="${y + 48}" fill="#102458" font-family="Arial, sans-serif" font-size="28" font-weight="800">${escapeXml(formatDateLabel(date))}</text>
-  <text x="122" y="${y + 84}" fill="#0F766E" font-family="Arial, sans-serif" font-size="20" font-weight="700">${activeCount} lịch</text>
-  <line x1="292" y1="${y + 24}" x2="292" y2="${y + 112}" stroke="#E2E8F0" stroke-width="2"/>
-  ${rowSvg}
-  ${overflowSvg}`;
+function renderDayColumn(date, bookings) {
+  return `<article class="day">
+    <header class="day-head">
+      <strong>${escapeHtml(formatWeekday(date))}</strong>
+      <span>${escapeHtml(formatShortDate(date))} • ${bookings.length} lịch</span>
+    </header>
+    <div class="day-body">
+      ${
+        bookings.length
+          ? bookings.map(renderBookingCard).join("")
+          : `<div class="empty">Chưa có lịch họp</div>`
+      }
+    </div>
+  </article>`;
 }
 
-function renderBookingRow(booking, y) {
-  return `
-  <circle cx="316" cy="${y - 7}" r="5" fill="#22C55E"/>
-  <text x="332" y="${y}" fill="#102458" font-family="Arial, sans-serif" font-size="21" font-weight="700">${escapeXml(booking.startTime || "")} - ${escapeXml(booking.endTime || "")}</text>
-  <text x="470" y="${y}" fill="#334155" font-family="Arial, sans-serif" font-size="21">${escapeXml(truncate(booking.topic || "", 54))}</text>`;
+function renderBookingCard(booking) {
+  return `<article class="booking">
+    <time>${escapeHtml(booking.startTime || "")} - ${escapeHtml(booking.endTime || "")}</time>
+    <strong>${escapeHtml(booking.topic || "")}</strong>
+    <small>${escapeHtml(booking.ownerEmail || "")}</small>
+    ${booking.note ? `<small>${escapeHtml(booking.note)}</small>` : ""}
+  </article>`;
 }
 
 function isAuthorizedCron(req) {
@@ -144,18 +332,11 @@ function addDays(date, days) {
   return value.toISOString().slice(0, 10);
 }
 
-function formatDateLabel(date) {
+function formatWeekday(date) {
   return new Intl.DateTimeFormat("vi-VN", {
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+    weekday: "short",
     timeZone: TIME_ZONE,
   }).format(new Date(`${date}T00:00:00+07:00`));
-}
-
-function formatDateRange(dates) {
-  return `${formatShortDate(dates[0])} - ${formatShortDate(dates[dates.length - 1])}`;
 }
 
 function formatShortDate(date) {
@@ -166,18 +347,19 @@ function formatShortDate(date) {
   }).format(new Date(`${date}T00:00:00+07:00`));
 }
 
+function formatDateRange(dates) {
+  return `${formatShortDate(dates[0])} - ${formatShortDate(dates[dates.length - 1])}`;
+}
+
 function sortBookings(a, b) {
   return `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`);
 }
 
-function escapeXml(value) {
+function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function truncate(value, maxLength) {
-  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}...` : value;
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
