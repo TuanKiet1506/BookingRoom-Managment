@@ -20,7 +20,11 @@ module.exports = async function handler(req, res) {
 
   const scriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL || "";
   if (!scriptUrl) {
-    res.status(500).json({ ok: false, error: "Missing GOOGLE_APPS_SCRIPT_URL" });
+    res.status(500).json({
+      ok: false,
+      error: "Missing GOOGLE_APPS_SCRIPT_URL",
+      hint: "Add GOOGLE_APPS_SCRIPT_URL in Vercel Environment Variables and redeploy.",
+    });
     return;
   }
 
@@ -39,13 +43,18 @@ module.exports = async function handler(req, res) {
 
     res.status(200).json({ ok: true, checkedDates: dates, sent });
   } catch (error) {
-    res.status(500).json({ ok: false, error: String(error.message || error) });
+    res.status(500).json({
+      ok: false,
+      error: String(error.message || error),
+      hint: "Open this URL in a browser after redeploy to read this JSON error. Common causes: Apps Script URL is old/not public, Telegram token/chat id is wrong, or Apps Script was not redeployed.",
+    });
   }
 };
 
 function isAuthorizedCron(req) {
   const secret = process.env.CRON_SECRET || "";
-  const querySecret = req.query?.secret || "";
+  const rawQuerySecret = req.query?.secret || "";
+  const querySecret = Array.isArray(rawQuerySecret) ? rawQuerySecret[0] : rawQuerySecret;
   const userAgent = String(req.headers["user-agent"] || "");
   return Boolean(
     (secret && querySecret === secret) ||
