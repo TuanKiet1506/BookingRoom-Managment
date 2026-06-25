@@ -38,8 +38,52 @@ async function markTelegramStatus(id, telegramStatus, userEmail) {
   });
 }
 
+async function createBooking(booking, userEmail) {
+  return callAppsScript({
+    action: "create",
+    booking,
+    userEmail,
+  });
+}
+
+async function cancelBooking(id, userEmail) {
+  return callAppsScript({
+    action: "cancel",
+    id,
+    userEmail,
+  });
+}
+
+async function getBotState(chatId) {
+  const result = await callAppsScript({
+    action: "getBotState",
+    chatId,
+  });
+  return result.state || null;
+}
+
+async function setBotState(chatId, state) {
+  return callAppsScript({
+    action: "setBotState",
+    chatId,
+    state,
+  });
+}
+
+async function clearBotState(chatId) {
+  return callAppsScript({
+    action: "clearBotState",
+    chatId,
+  });
+}
+
 module.exports = {
   callAppsScript,
+  cancelBooking,
+  clearBotState,
+  createBooking,
+  getBotState,
   listBookings,
   markTelegramStatus,
+  setBotState,
 };

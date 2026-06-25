@@ -49,6 +49,10 @@ Các lệnh đang hỗ trợ:
 - `/today`
 - `/tomorrow`
 - `/upcoming`
+- `/book`
+- `/cancel`
+- `/confirm`
+- `/abort`
 
 ## Lưu Google Sheet
 

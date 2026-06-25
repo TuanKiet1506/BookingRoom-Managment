@@ -3,6 +3,7 @@ const SHEET_NAME = "Bookings";
 const ADMIN_EMAIL = "admin@khomes.com.vn";
 const ANNUAL_CLEANUP_FUNCTION = "annualCleanupBookings";
 const LAST_CLEANUP_YEAR_KEY = "meetinghub.lastCleanupYear";
+const BOT_STATE_PREFIX = "meetinghub.botState.";
 const HEADERS = [
   "id",
   "date",
@@ -49,6 +50,20 @@ function doPost(e) {
     if (payload.action === "markTelegram") {
       validateAdminEmail(payload.userEmail);
       markTelegramStatus(payload.id, payload.telegramStatus);
+      return json({ ok: true });
+    }
+
+    if (payload.action === "getBotState") {
+      return json({ ok: true, state: getBotState(payload.chatId) });
+    }
+
+    if (payload.action === "setBotState") {
+      setBotState(payload.chatId, payload.state);
+      return json({ ok: true });
+    }
+
+    if (payload.action === "clearBotState") {
+      clearBotState(payload.chatId);
       return json({ ok: true });
     }
 
@@ -166,6 +181,31 @@ function markTelegramStatus(id, telegramStatus) {
   }
 
   throw new Error("Booking not found");
+}
+
+function getBotState(chatId) {
+  const raw = PropertiesService.getScriptProperties().getProperty(botStateKey(chatId));
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function setBotState(chatId, state) {
+  PropertiesService.getScriptProperties().setProperty(
+    botStateKey(chatId),
+    JSON.stringify(state || null),
+  );
+}
+
+function clearBotState(chatId) {
+  PropertiesService.getScriptProperties().deleteProperty(botStateKey(chatId));
+}
+
+function botStateKey(chatId) {
+  return `${BOT_STATE_PREFIX}${String(chatId || "").trim()}`;
 }
 
 function assertNoConflict(booking) {
