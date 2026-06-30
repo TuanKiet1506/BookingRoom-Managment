@@ -1,4 +1,7 @@
-const APPS_SCRIPT_TIMEOUT_MS = 8000;
+// Vercel Hobby cap is 10 s total. Two sequential calls (getBotState + setBotState)
+// each get 4 s; that leaves ~2 s for the catch block to call sendTelegramMessage
+// before Vercel kills the function and Telegram's retry storm kicks in.
+const APPS_SCRIPT_TIMEOUT_MS = 4000;
 
 async function callAppsScript(payload, retries = 1) {
   const scriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL || "";
