@@ -48,15 +48,12 @@ async function setTelegramCommands(options = {}) {
     scopes.push({ type: "chat", chat_id: String(options.chatId) });
   }
 
-  const results = [];
-  for (const scope of scopes) {
-    const result = await callTelegramApi("setMyCommands", {
-      scope,
-      commands: TELEGRAM_COMMANDS,
-    });
-    results.push({ scope: scope.type, ok: result.ok });
-  }
-  return results;
+  const results = await Promise.all(
+    scopes.map((scope) =>
+      callTelegramApi("setMyCommands", { scope, commands: TELEGRAM_COMMANDS }),
+    ),
+  );
+  return results.map((result, i) => ({ scope: scopes[i].type, ok: result.ok }));
 }
 
 async function sendTelegramMessage(text, targetChatId) {

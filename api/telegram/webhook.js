@@ -39,7 +39,10 @@ module.exports = async function handler(req, res) {
       res.status(200).json({ ok: true, ignored: true });
       return;
     }
-    await syncTelegramCommands(chatId, message.chat.type);
+    // Fire-and-forget: syncing commands must not block the user's response.
+    // commandSyncTimes is in-memory and resets on each serverless cold start,
+    // so without this the sync would run on every single message.
+    syncTelegramCommands(chatId, message.chat.type).catch(console.error);
 
     const command = parseCommand(message.text);
     const responseText = command
