@@ -114,15 +114,18 @@ function helpMessage() {
 async function startBookFlow(chatId) {
   await setBotState(chatId, {
     flow: "book",
-    step: "date",
+    step: "collect",
     data: {},
     createdAt: new Date().toISOString(),
   });
   return [
     "Mình sẽ giúp bạn đặt lịch phòng họp.",
     "",
-    "Bạn muốn đặt lịch ngày nào?",
-    "Ví dụ: hôm nay, ngày mai, 2026-06-26 hoặc 26/06/2026",
+    "Bạn gửi lịch theo cú pháp:",
+    "ngày, giờ bắt đầu, giờ kết thúc, chủ đề, ghi chú",
+    "",
+    "Ví dụ: 01/07/2026, 13:00, 14:15, Họp bàn giao sản phẩm, -",
+    "Ghi chú nhập - nếu không có.",
     "",
     "Gõ /abort nếu muốn hủy thao tác.",
   ].join("\n");
@@ -163,6 +166,28 @@ async function handleConversation(chatId, text) {
 async function continueBookFlow(chatId, state, text) {
   const value = String(text || "").trim();
   const data = state.data || {};
+
+  if (state.step === "collect") {
+    const result = parseBookingCommand(value);
+    if (result.error) {
+      return [
+        result.error,
+        "",
+        "Cú pháp đúng:",
+        "01/07/2026, 13:00, 14:15, Họp bàn giao sản phẩm, -",
+      ].join("\n");
+    }
+
+    const booking = buildBooking(result.booking);
+    await setBotState(chatId, { ...state, step: "confirm", booking });
+    return [
+      "Xác nhận đặt lịch?",
+      "",
+      formatBookingSummary(booking),
+      "",
+      "Gõ /confirm để xác nhận hoặc /abort để hủy thao tác.",
+    ].join("\n");
+  }
 
   if (state.step === "date") {
     const date = parseFriendlyDate(value);
@@ -338,6 +363,50 @@ function formatBookingSummary(booking) {
 
 function shortBookingLine(booking) {
   return `${formatDate(booking.date)} ${booking.startTime || ""} - ${booking.endTime || ""} | ${booking.topic || ""}`;
+}
+
+function parseBookingCommand(value) {
+  const parts = String(value || "").split(",").map((part) => part.trim());
+  if (parts.length < 5) {
+    return { error: "Bạn nhập thiếu thông tin. Cần đủ 5 phần: ngày, giờ bắt đầu, giờ kết thúc, chủ đề, ghi chú." };
+  }
+
+  const date = parseFriendlyDate(parts[0]);
+  if (!date) {
+    return { error: "Mình chưa hiểu ngày này. Bạn nhập dạng hôm nay, ngày mai, 2026-07-01 hoặc 01/07/2026 nhé." };
+  }
+  if (date < todayISO()) {
+    return { error: "Không thể đặt lịch cho ngày trong quá khứ. Bạn chọn ngày khác nhé." };
+  }
+
+  const startTime = parseTime(parts[1]);
+  if (!startTime) {
+    return { error: "Giờ bắt đầu chưa đúng định dạng. Bạn nhập dạng HH:mm, ví dụ 13:00 nhé." };
+  }
+
+  const endTime = parseTime(parts[2]);
+  if (!endTime) {
+    return { error: "Giờ kết thúc chưa đúng định dạng. Bạn nhập dạng HH:mm, ví dụ 14:15 nhé." };
+  }
+  if (startTime >= endTime) {
+    return { error: "Giờ kết thúc phải sau giờ bắt đầu." };
+  }
+
+  const topic = parts.slice(3, -1).join(", ").trim();
+  if (!topic) {
+    return { error: "Bạn nhập giúp mình chủ đề cuộc họp nhé." };
+  }
+
+  const note = parts[parts.length - 1] === "-" ? "" : parts[parts.length - 1];
+  return {
+    booking: {
+      date,
+      startTime,
+      endTime,
+      topic,
+      note,
+    },
+  };
 }
 
 function parseFriendlyDate(value) {

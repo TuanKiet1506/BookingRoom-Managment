@@ -10,6 +10,51 @@ function hasTelegramConfig() {
   return Boolean(token && chatId);
 }
 
+const TELEGRAM_COMMANDS = [
+  { command: "help", description: "Xem hướng dẫn sử dụng bot" },
+  { command: "today", description: "Xem lịch họp hôm nay" },
+  { command: "tomorrow", description: "Xem lịch họp ngày mai" },
+  { command: "upcoming", description: "Xem lịch sắp diễn ra" },
+  { command: "book", description: "Đặt lịch họp mới" },
+  { command: "cancel", description: "Hủy lịch họp sắp tới" },
+  { command: "confirm", description: "Xác nhận thao tác" },
+  { command: "abort", description: "Hủy thao tác" },
+];
+
+async function callTelegramApi(method, body) {
+  const { token } = getTelegramConfig();
+  if (!token) throw new Error("Missing TELEGRAM_BOT_TOKEN");
+
+  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.ok) {
+    throw new Error(result.description || `Telegram ${method} failed`);
+  }
+  return result;
+}
+
+async function setTelegramCommands() {
+  const scopes = [
+    { type: "default" },
+    { type: "all_private_chats" },
+    { type: "all_group_chats" },
+  ];
+
+  const results = [];
+  for (const scope of scopes) {
+    const result = await callTelegramApi("setMyCommands", {
+      scope,
+      commands: TELEGRAM_COMMANDS,
+    });
+    results.push({ scope: scope.type, ok: result.ok });
+  }
+  return results;
+}
+
 async function sendTelegramMessage(text, targetChatId) {
   const { token, chatId } = getTelegramConfig();
   const destination = targetChatId || chatId;
@@ -99,10 +144,12 @@ function bookingReminderMessage(booking) {
 }
 
 module.exports = {
+  TELEGRAM_COMMANDS,
   bookingCancelledMessage,
   bookingCreatedMessage,
   bookingReminderMessage,
   hasTelegramConfig,
   sendTelegramMessage,
   sendTelegramPhoto,
+  setTelegramCommands,
 };
