@@ -15,6 +15,7 @@ const TELEGRAM_COMMANDS = [
   { command: "today", description: "Xem lịch họp hôm nay" },
   { command: "tomorrow", description: "Xem lịch họp ngày mai" },
   { command: "upcoming", description: "Xem lịch sắp diễn ra" },
+  { command: "id", description: "Xem Chat ID" },
   { command: "book", description: "Đặt lịch họp mới" },
   { command: "cancel", description: "Hủy lịch họp sắp tới" },
   { command: "confirm", description: "Xác nhận thao tác" },
@@ -37,12 +38,15 @@ async function callTelegramApi(method, body) {
   return result;
 }
 
-async function setTelegramCommands() {
+async function setTelegramCommands(options = {}) {
   const scopes = [
     { type: "default" },
     { type: "all_private_chats" },
     { type: "all_group_chats" },
   ];
+  if (options.chatId) {
+    scopes.push({ type: "chat", chat_id: String(options.chatId) });
+  }
 
   const results = [];
   for (const scope of scopes) {

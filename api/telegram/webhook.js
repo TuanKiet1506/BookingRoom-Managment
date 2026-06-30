@@ -11,11 +11,14 @@ const {
   bookingCancelledMessage,
   bookingCreatedMessage,
   sendTelegramMessage,
+  setTelegramCommands,
 } = require("../_telegram");
 
 const TIME_ZONE = "Asia/Saigon";
 const ADMIN_EMAIL = "admin@khomes.com.vn";
 const MEETING_ROOM = "Phòng họp";
+const COMMAND_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const commandSyncTimes = new Map();
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -35,6 +38,7 @@ module.exports = async function handler(req, res) {
       res.status(200).json({ ok: true, ignored: true });
       return;
     }
+    await syncTelegramCommands(chatId, message.chat.type);
 
     const command = parseCommand(message.text);
     const responseText = command
@@ -62,6 +66,22 @@ module.exports = async function handler(req, res) {
 function isAllowedChat(chatId, chatType) {
   const allowedChatId = String(process.env.TELEGRAM_CHAT_ID || "");
   return chatType === "private" || Boolean(allowedChatId && chatId === allowedChatId);
+}
+
+async function syncTelegramCommands(chatId, chatType) {
+  const isGroup = chatType === "group" || chatType === "supergroup";
+  const key = isGroup ? `chat:${chatId}` : "private";
+  const now = Date.now();
+  const lastSyncedAt = commandSyncTimes.get(key) || 0;
+  if (now - lastSyncedAt < COMMAND_SYNC_INTERVAL_MS) return;
+
+  commandSyncTimes.set(key, now);
+  try {
+    await setTelegramCommands(isGroup ? { chatId } : {});
+  } catch (error) {
+    commandSyncTimes.delete(key);
+    console.error("Telegram command sync failed:", error);
+  }
 }
 
 function parseCommand(text) {

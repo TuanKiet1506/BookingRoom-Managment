@@ -15,7 +15,8 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const results = await setTelegramCommands();
+    const chatId = getQueryValue(req.query?.chatId);
+    const results = await setTelegramCommands({ chatId });
     res.status(200).json({
       ok: true,
       commands: TELEGRAM_COMMANDS.map((item) => item.command),
@@ -28,7 +29,10 @@ module.exports = async function handler(req, res) {
 
 function isAuthorized(req) {
   const secret = process.env.CRON_SECRET || "";
-  const rawQuerySecret = req.query?.secret || "";
-  const querySecret = Array.isArray(rawQuerySecret) ? rawQuerySecret[0] : rawQuerySecret;
+  const querySecret = getQueryValue(req.query?.secret);
   return Boolean(secret && querySecret === secret);
+}
+
+function getQueryValue(value) {
+  return Array.isArray(value) ? value[0] : String(value || "");
 }
