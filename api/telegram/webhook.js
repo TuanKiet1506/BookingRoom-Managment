@@ -1,8 +1,7 @@
 const { randomUUID } = require("crypto");
 const {
-  cancelBooking,
   clearBotState,
-  createBooking,
+  confirmFlowCall,
   getBotState,
   listBookings,
   listBookingsByDates,
@@ -284,21 +283,22 @@ async function continueCancelFlow(chatId, state, text) {
 }
 
 async function confirmFlow(chatId) {
-  const state = await getBotState(chatId);
-  if (!state) return "Không có thao tác nào đang chờ xác nhận.";
+  const result = await confirmFlowCall(chatId, ADMIN_EMAIL);
 
-  if (state.flow === "book" && state.step === "confirm" && state.booking) {
-    await createBooking(state.booking, ADMIN_EMAIL);
-    await clearBotState(chatId);
-    await notifyDefaultGroupIfNeeded(chatId, bookingCreatedMessage(state.booking));
-    return `Đã đặt lịch thành công.\n\n${formatBookingSummary(state.booking)}`;
+  if (!result.confirmed) {
+    return result.reason === "no_state"
+      ? "Không có thao tác nào đang chờ xác nhận."
+      : "Thao tác hiện tại chưa sẵn sàng để xác nhận.";
   }
 
-  if (state.flow === "cancel" && state.step === "confirm" && state.booking) {
-    await cancelBooking(state.booking.id, ADMIN_EMAIL);
-    await clearBotState(chatId);
-    await notifyDefaultGroupIfNeeded(chatId, bookingCancelledMessage(state.booking, ADMIN_EMAIL));
-    return `Đã hủy lịch thành công.\n\n${formatBookingSummary(state.booking)}`;
+  if (result.flow === "book") {
+    await notifyDefaultGroupIfNeeded(chatId, bookingCreatedMessage(result.booking));
+    return `Đã đặt lịch thành công.\n\n${formatBookingSummary(result.booking)}`;
+  }
+
+  if (result.flow === "cancel") {
+    await notifyDefaultGroupIfNeeded(chatId, bookingCancelledMessage(result.booking, ADMIN_EMAIL));
+    return `Đã hủy lịch thành công.\n\n${formatBookingSummary(result.booking)}`;
   }
 
   return "Thao tác hiện tại chưa sẵn sàng để xác nhận.";

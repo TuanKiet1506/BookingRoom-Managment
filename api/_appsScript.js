@@ -68,6 +68,13 @@ async function cancelBooking(id, userEmail) {
   });
 }
 
+// Single round-trip that reads bot state, writes to Sheet, and clears bot state,
+// replacing the three sequential calls previously needed for /confirm.
+async function confirmFlowCall(chatId, userEmail) {
+  const result = await callAppsScript({ action: "confirmFlow", chatId, userEmail });
+  return result;
+}
+
 async function getBotState(chatId) {
   const result = await callAppsScript({
     action: "getBotState",
@@ -95,6 +102,7 @@ module.exports = {
   callAppsScript,
   cancelBooking,
   clearBotState,
+  confirmFlowCall,
   createBooking,
   getBotState,
   listBookings,

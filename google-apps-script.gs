@@ -37,6 +37,41 @@ function doPost(e) {
       return json({ ok: true });
     }
 
+    // Combines getBotState + sheet write + clearBotState into one call
+    // so /confirm only needs a single Apps Script round-trip instead of three.
+    if (payload.action === "confirmFlow") {
+      const state = getBotState(payload.chatId);
+      if (!state) {
+        return json({ ok: true, confirmed: false, reason: "no_state" });
+      }
+      if (state.step !== "confirm") {
+        return json({ ok: true, confirmed: false, reason: "not_ready" });
+      }
+      if (state.flow === "book" && state.booking) {
+        ensureSheet();
+        const booking = state.booking;
+        booking.ownerEmail = ADMIN_EMAIL;
+        assertNotPastDate(booking.date);
+        assertNoConflict(booking);
+        appendBooking(booking);
+        clearBotState(payload.chatId);
+        return json({ ok: true, confirmed: true, flow: "book", booking });
+      }
+      if (state.flow === "cancel" && state.booking) {
+        ensureSheet();
+        validateAdminEmail(payload.userEmail);
+        cancelBooking(state.booking.id, payload.userEmail);
+        clearBotState(payload.chatId);
+        return json({
+          ok: true,
+          confirmed: true,
+          flow: "cancel",
+          booking: state.booking,
+        });
+      }
+      return json({ ok: true, confirmed: false, reason: "not_ready" });
+    }
+
     ensureSheet();
 
     if (payload.action === "list") {
@@ -49,9 +84,12 @@ function doPost(e) {
     // Returns bookings for an array of dates in one call,
     // replacing multiple parallel "list" requests.
     if (payload.action === "listRange") {
-      const dates = Array.isArray(payload.dates) ? payload.dates.map(String) : [];
+      const dates = Array.isArray(payload.dates)
+        ? payload.dates.map(String)
+        : [];
       const all = listBookings(null);
-      const filtered = dates.length > 0 ? all.filter((b) => dates.includes(b.date)) : all;
+      const filtered =
+        dates.length > 0 ? all.filter((b) => dates.includes(b.date)) : all;
       return json({ ok: true, bookings: filtered });
     }
 
@@ -128,7 +166,9 @@ function ensureSheet() {
   if (!sheet) sheet = spreadsheet.insertSheet(SHEET_NAME);
 
   const currentHeaders = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
-  const needsHeader = HEADERS.some((header, index) => currentHeaders[index] !== header);
+  const needsHeader = HEADERS.some(
+    (header, index) => currentHeaders[index] !== header,
+  );
   if (needsHeader) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.setFrozenRows(1);
@@ -139,7 +179,9 @@ function listBookings(date) {
   const rows = getRows();
   return rows
     .filter((booking) => !date || booking.date === date)
-    .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));
+    .sort((a, b) =>
+      `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`),
+    );
 }
 
 function appendBooking(booking) {
@@ -149,8 +191,22 @@ function appendBooking(booking) {
     assertNoConflict(booking);
     const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
     sheet.appendRow(HEADERS.map((header) => booking[header] || ""));
-    sheet.getRange(2, HEADERS.indexOf("date") + 1, Math.max(sheet.getLastRow() - 1, 1), 1).setNumberFormat("@");
-    sheet.getRange(2, HEADERS.indexOf("startTime") + 1, Math.max(sheet.getLastRow() - 1, 1), 2).setNumberFormat("@");
+    sheet
+      .getRange(
+        2,
+        HEADERS.indexOf("date") + 1,
+        Math.max(sheet.getLastRow() - 1, 1),
+        1,
+      )
+      .setNumberFormat("@");
+    sheet
+      .getRange(
+        2,
+        HEADERS.indexOf("startTime") + 1,
+        Math.max(sheet.getLastRow() - 1, 1),
+        2,
+      )
+      .setNumberFormat("@");
   } finally {
     lock.releaseLock();
   }
@@ -167,7 +223,9 @@ function cancelBooking(id, userEmail) {
   for (let row = 1; row < values.length; row += 1) {
     if (values[row][idColumn] === id) {
       sheet.getRange(row + 1, statusColumn + 1).setValue("CANCELLED");
-      sheet.getRange(row + 1, cancelledAtColumn + 1).setValue(new Date().toISOString());
+      sheet
+        .getRange(row + 1, cancelledAtColumn + 1)
+        .setValue(new Date().toISOString());
       sheet.getRange(row + 1, cancelledByColumn + 1).setValue(userEmail);
       return;
     }
@@ -184,7 +242,9 @@ function markTelegramStatus(id, telegramStatus) {
 
   for (let row = 1; row < values.length; row += 1) {
     if (values[row][idColumn] === id) {
-      sheet.getRange(row + 1, telegramStatusColumn + 1).setValue(telegramStatus || "REMINDED_1H");
+      sheet
+        .getRange(row + 1, telegramStatusColumn + 1)
+        .setValue(telegramStatus || "REMINDED_1H");
       return;
     }
   }
@@ -193,7 +253,9 @@ function markTelegramStatus(id, telegramStatus) {
 }
 
 function getBotState(chatId) {
-  const raw = PropertiesService.getScriptProperties().getProperty(botStateKey(chatId));
+  const raw = PropertiesService.getScriptProperties().getProperty(
+    botStateKey(chatId),
+  );
   if (!raw) return null;
   try {
     return JSON.parse(raw);
@@ -229,13 +291,19 @@ function assertNoConflict(booking) {
   });
 
   if (conflict) {
-    throw new Error(`Conflict with ${conflict.topic} (${conflict.startTime}-${conflict.endTime})`);
+    throw new Error(
+      `Conflict with ${conflict.topic} (${conflict.startTime}-${conflict.endTime})`,
+    );
   }
 }
 
 function assertNotPastDate(dateValue) {
   const bookingDate = normalizeSheetValue("date", dateValue);
-  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+  const today = Utilities.formatDate(
+    new Date(),
+    Session.getScriptTimeZone(),
+    "yyyy-MM-dd",
+  );
   if (!bookingDate || bookingDate < today) {
     throw new Error("Cannot book past date");
   }
@@ -244,7 +312,10 @@ function assertNotPastDate(dateValue) {
 function getRows() {
   const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
   const values = sheet.getDataRange().getValues();
-  return values.slice(1).filter((row) => row[0]).map(rowToBooking);
+  return values
+    .slice(1)
+    .filter((row) => row[0])
+    .map(rowToBooking);
 }
 
 function rowToBooking(row) {
@@ -256,9 +327,16 @@ function rowToBooking(row) {
 
 function normalizeSheetValue(header, value) {
   if (!value) return "";
-  if (Object.prototype.toString.call(value) === "[object Date]" && !isNaN(value.getTime())) {
+  if (
+    Object.prototype.toString.call(value) === "[object Date]" &&
+    !isNaN(value.getTime())
+  ) {
     if (header === "date") {
-      return Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd");
+      return Utilities.formatDate(
+        value,
+        Session.getScriptTimeZone(),
+        "yyyy-MM-dd",
+      );
     }
     if (header === "startTime" || header === "endTime") {
       return Utilities.formatDate(value, Session.getScriptTimeZone(), "HH:mm");
@@ -286,7 +364,11 @@ function normalizeSheetValue(header, value) {
 }
 
 function validateAdminEmail(email) {
-  if (String(email || "").trim().toLowerCase() !== ADMIN_EMAIL) {
+  if (
+    String(email || "")
+      .trim()
+      .toLowerCase() !== ADMIN_EMAIL
+  ) {
     throw new Error("Admin account only");
   }
 }
