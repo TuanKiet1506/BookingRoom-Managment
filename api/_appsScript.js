@@ -1,20 +1,37 @@
+const APPS_SCRIPT_TIMEOUT_MS = 8000;
+
 async function callAppsScript(payload, retries = 1) {
   const scriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL || "";
   if (!scriptUrl) {
     throw new Error("Missing GOOGLE_APPS_SCRIPT_URL");
   }
 
-  const response = await fetch(scriptUrl, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  const text = await response.text();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), APPS_SCRIPT_TIMEOUT_MS);
+
+  let response, text;
+  try {
+    response = await fetch(scriptUrl, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    text = await response.text();
+  } catch (fetchError) {
+    clearTimeout(timeoutId);
+    if (fetchError.name === "AbortError") {
+      throw new Error("Apps Script không phản hồi sau 8 giây. Bạn gửi lại lệnh một lần nữa nhé.");
+    }
+    throw fetchError;
+  }
+  clearTimeout(timeoutId);
+
   let result;
   try {
     result = JSON.parse(text);
   } catch {
+    // Apps Script returned an HTML error page — retry once immediately (no delay).
     if (retries > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
       return callAppsScript(payload, retries - 1);
     }
     throw new Error(`Apps Script did not return JSON: ${text.slice(0, 120)}`);

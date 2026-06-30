@@ -6,5 +6,10 @@
       "path": "/api/cron/weekly-snapshot",
       "schedule": "0 23 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 10
+    }
+  }
 }
