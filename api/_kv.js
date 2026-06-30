@@ -1,8 +1,10 @@
 const { Redis } = require("@upstash/redis");
 
+// Vercel's Upstash integration provisions these as KV_REST_API_* (not
+// UPSTASH_REDIS_REST_*). Fall back to the Upstash-native names just in case.
 const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
 const BOT_STATE_PREFIX = "meetinghub:botstate:";
