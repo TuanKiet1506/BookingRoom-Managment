@@ -5,6 +5,7 @@ const {
   createBooking,
   getBotState,
   listBookings,
+  listBookingsByDates,
   setBotState,
 } = require("../_appsScript");
 const {
@@ -325,8 +326,7 @@ async function bookingsForDateMessage(title, date) {
 
 async function upcomingMessage() {
   const dates = [todayISO(), addDays(todayISO(), 1), addDays(todayISO(), 2)];
-  const rows = (await Promise.all(dates.map(listBookings)))
-    .flat()
+  const rows = (await listBookingsByDates(dates))
     .filter((booking) => booking.status !== "CANCELLED")
     .filter((booking) => minutesUntilStart(booking) >= 0)
     .sort(sortBookings)
@@ -345,8 +345,7 @@ async function upcomingMessage() {
 
 async function upcomingBookings(days) {
   const dates = Array.from({ length: days }, (_, index) => addDays(todayISO(), index));
-  return (await Promise.all(dates.map(listBookings)))
-    .flat()
+  return (await listBookingsByDates(dates))
     .filter((booking) => booking.status !== "CANCELLED")
     .filter((booking) => minutesUntilStart(booking) >= 0)
     .sort(sortBookings)

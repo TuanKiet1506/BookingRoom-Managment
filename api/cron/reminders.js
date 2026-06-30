@@ -3,7 +3,7 @@ const {
   sendTelegramMessage,
 } = require("../_telegram");
 const {
-  listBookings,
+  listBookingsByDates,
   markTelegramStatus,
 } = require("../_appsScript");
 
@@ -33,9 +33,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const dates = getReminderDates();
-    const bookings = (await Promise.all(dates.map((date) => listBookings(date))))
-      .flat()
-      .filter(shouldSendReminder);
+    const bookings = (await listBookingsByDates(dates)).filter(shouldSendReminder);
 
     const sent = [];
     for (const booking of bookings) {

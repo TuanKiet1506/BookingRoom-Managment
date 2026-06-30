@@ -23,6 +23,20 @@ const HEADERS = [
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents || "{}");
+
+    // Bot-state actions use PropertiesService only — no Sheet access needed.
+    if (payload.action === "getBotState") {
+      return json({ ok: true, state: getBotState(payload.chatId) });
+    }
+    if (payload.action === "setBotState") {
+      setBotState(payload.chatId, payload.state);
+      return json({ ok: true });
+    }
+    if (payload.action === "clearBotState") {
+      clearBotState(payload.chatId);
+      return json({ ok: true });
+    }
+
     ensureSheet();
 
     if (payload.action === "list") {
@@ -30,6 +44,15 @@ function doPost(e) {
         ok: true,
         bookings: listBookings(payload.date),
       });
+    }
+
+    // Returns bookings for an array of dates in one call,
+    // replacing multiple parallel "list" requests.
+    if (payload.action === "listRange") {
+      const dates = Array.isArray(payload.dates) ? payload.dates.map(String) : [];
+      const all = listBookings(null);
+      const filtered = dates.length > 0 ? all.filter((b) => dates.includes(b.date)) : all;
+      return json({ ok: true, bookings: filtered });
     }
 
     if (payload.action === "create") {
@@ -50,20 +73,6 @@ function doPost(e) {
     if (payload.action === "markTelegram") {
       validateAdminEmail(payload.userEmail);
       markTelegramStatus(payload.id, payload.telegramStatus);
-      return json({ ok: true });
-    }
-
-    if (payload.action === "getBotState") {
-      return json({ ok: true, state: getBotState(payload.chatId) });
-    }
-
-    if (payload.action === "setBotState") {
-      setBotState(payload.chatId, payload.state);
-      return json({ ok: true });
-    }
-
-    if (payload.action === "clearBotState") {
-      clearBotState(payload.chatId);
       return json({ ok: true });
     }
 

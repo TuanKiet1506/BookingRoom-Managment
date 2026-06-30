@@ -1,4 +1,4 @@
-async function callAppsScript(payload) {
+async function callAppsScript(payload, retries = 1) {
   const scriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL || "";
   if (!scriptUrl) {
     throw new Error("Missing GOOGLE_APPS_SCRIPT_URL");
@@ -13,6 +13,10 @@ async function callAppsScript(payload) {
   try {
     result = JSON.parse(text);
   } catch {
+    if (retries > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      return callAppsScript(payload, retries - 1);
+    }
     throw new Error(`Apps Script did not return JSON: ${text.slice(0, 120)}`);
   }
   if (!response.ok || !result.ok) {
@@ -25,6 +29,16 @@ async function listBookings(date) {
   const result = await callAppsScript({
     action: "list",
     date,
+  });
+  return result.bookings || [];
+}
+
+// Fetches bookings for multiple dates in a single Apps Script call,
+// avoiding the concurrency issues caused by parallel "list" requests.
+async function listBookingsByDates(dates) {
+  const result = await callAppsScript({
+    action: "listRange",
+    dates,
   });
   return result.bookings || [];
 }
@@ -84,6 +98,7 @@ module.exports = {
   createBooking,
   getBotState,
   listBookings,
+  listBookingsByDates,
   markTelegramStatus,
   setBotState,
 };

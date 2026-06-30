@@ -1,7 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { Resvg } = require("@resvg/resvg-js");
-const { listBookings } = require("../_appsScript");
+const { listBookingsByDates } = require("../_appsScript");
 const { sendTelegramPhoto } = require("../_telegram");
 
 const TIME_ZONE = "Asia/Saigon";
@@ -70,10 +70,10 @@ module.exports = async function handler(req, res) {
 };
 
 async function loadWeekBookings(dates) {
-  const rows = await Promise.all(dates.map(listBookings));
-  return dates.reduce((result, date, index) => {
-    result[date] = rows[index]
-      .filter((booking) => booking.status !== "CANCELLED")
+  const allBookings = await listBookingsByDates(dates);
+  return dates.reduce((result, date) => {
+    result[date] = allBookings
+      .filter((booking) => booking.date === date && booking.status !== "CANCELLED")
       .sort(sortBookings);
     return result;
   }, {});
