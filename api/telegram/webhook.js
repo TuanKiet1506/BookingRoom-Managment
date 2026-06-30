@@ -328,22 +328,23 @@ async function bookingsForDateMessage(title, date) {
 }
 
 async function upcomingMessage() {
-  const dates = [todayISO(), addDays(todayISO(), 1), addDays(todayISO(), 2)];
-  const rows = (await listBookingsByDates(dates))
+  const today = todayISO();
+  const dates = [today, addDays(today, 1), addDays(today, 2)];
+  const allBookings = (await listBookingsByDates(dates))
     .filter((booking) => booking.status !== "CANCELLED")
-    .filter((booking) => minutesUntilStart(booking) >= 0)
-    .sort(sortBookings)
-    .slice(0, 8);
+    .sort(sortBookings);
 
-  if (rows.length === 0) {
-    return "Lịch sắp diễn ra\n\nKhông có lịch họp sắp tới.";
-  }
+  const sections = dates.map((date) => {
+    const dayBookings = allBookings.filter((b) => b.date === date);
+    const label = date === today ? "Hôm nay" : date === dates[1] ? "Ngày mai" : "Ngày kia";
+    const header = `${label} — ${formatDate(date)}`;
+    if (dayBookings.length === 0) {
+      return `${header}\nKhông có lịch họp.`;
+    }
+    return [header, ...dayBookings.map(formatBookingSummary)].join("\n\n");
+  });
 
-  return [
-    "Lịch sắp diễn ra",
-    "",
-    rows.map(formatBookingSummary).join("\n\n"),
-  ].join("\n");
+  return ["Lịch 3 ngày tới", "", sections.join("\n\n──────────────\n\n")].join("\n");
 }
 
 async function upcomingBookings(days) {
