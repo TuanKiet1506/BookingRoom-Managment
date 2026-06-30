@@ -1,11 +1,10 @@
 const { randomUUID } = require("crypto");
+const { getBotState, setBotState, clearBotState } = require("../_kv");
 const {
-  clearBotState,
-  confirmFlowCall,
-  getBotState,
+  cancelBooking,
+  createBooking,
   listBookings,
   listBookingsByDates,
-  setBotState,
 } = require("../_appsScript");
 const {
   bookingCancelledMessage,
@@ -283,22 +282,24 @@ async function continueCancelFlow(chatId, state, text) {
 }
 
 async function confirmFlow(chatId) {
-  const result = await confirmFlowCall(chatId, ADMIN_EMAIL);
+  const state = await getBotState(chatId);
+  if (!state) return "Không có thao tác nào đang chờ xác nhận.";
+  if (state.step !== "confirm") return "Thao tác hiện tại chưa sẵn sàng để xác nhận.";
 
-  if (!result.confirmed) {
-    return result.reason === "no_state"
-      ? "Không có thao tác nào đang chờ xác nhận."
-      : "Thao tác hiện tại chưa sẵn sàng để xác nhận.";
+  if (state.flow === "book" && state.booking) {
+    const booking = { ...state.booking, ownerEmail: ADMIN_EMAIL };
+    await createBooking(booking, ADMIN_EMAIL);
+    await clearBotState(chatId);
+    // Fire-and-forget group notification to keep response time under Vercel's 10s cap.
+    notifyDefaultGroupIfNeeded(chatId, bookingCreatedMessage(booking)).catch(console.error);
+    return `Đã đặt lịch thành công.\n\n${formatBookingSummary(booking)}`;
   }
 
-  if (result.flow === "book") {
-    await notifyDefaultGroupIfNeeded(chatId, bookingCreatedMessage(result.booking));
-    return `Đã đặt lịch thành công.\n\n${formatBookingSummary(result.booking)}`;
-  }
-
-  if (result.flow === "cancel") {
-    await notifyDefaultGroupIfNeeded(chatId, bookingCancelledMessage(result.booking, ADMIN_EMAIL));
-    return `Đã hủy lịch thành công.\n\n${formatBookingSummary(result.booking)}`;
+  if (state.flow === "cancel" && state.booking) {
+    await cancelBooking(state.booking.id, ADMIN_EMAIL);
+    await clearBotState(chatId);
+    notifyDefaultGroupIfNeeded(chatId, bookingCancelledMessage(state.booking, ADMIN_EMAIL)).catch(console.error);
+    return `Đã hủy lịch thành công.\n\n${formatBookingSummary(state.booking)}`;
   }
 
   return "Thao tác hiện tại chưa sẵn sàng để xác nhận.";

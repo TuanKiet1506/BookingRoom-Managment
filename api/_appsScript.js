@@ -1,5 +1,7 @@
 // State-only calls (PropertiesService, no Sheet): used in pairs → 4 s each keeps
 // two sequential calls within Vercel Hobby's 10 s function cap.
+// NOTE: getBotState/setBotState/clearBotState have moved to _kv.js (Vercel KV).
+// Apps Script is now only responsible for Google Sheet operations.
 const APPS_SCRIPT_STATE_TIMEOUT_MS = 4000;
 
 // Sheet calls (SpreadsheetApp read or write): always a single call per request,
@@ -75,38 +77,11 @@ async function cancelBooking(id, userEmail) {
   return callAppsScript({ action: "cancel", id, userEmail }, 1, APPS_SCRIPT_SHEET_TIMEOUT_MS);
 }
 
-// Single round-trip: reads bot state + writes to Sheet + clears state.
-// Needs the longer sheet timeout because it touches SpreadsheetApp.
-async function confirmFlowCall(chatId, userEmail) {
-  return callAppsScript(
-    { action: "confirmFlow", chatId, userEmail },
-    1,
-    APPS_SCRIPT_SHEET_TIMEOUT_MS,
-  );
-}
-
-async function getBotState(chatId) {
-  const result = await callAppsScript({ action: "getBotState", chatId });
-  return result.state || null;
-}
-
-async function setBotState(chatId, state) {
-  return callAppsScript({ action: "setBotState", chatId, state });
-}
-
-async function clearBotState(chatId) {
-  return callAppsScript({ action: "clearBotState", chatId });
-}
-
 module.exports = {
   callAppsScript,
   cancelBooking,
-  clearBotState,
-  confirmFlowCall,
   createBooking,
-  getBotState,
   listBookings,
   listBookingsByDates,
   markTelegramStatus,
-  setBotState,
 };
