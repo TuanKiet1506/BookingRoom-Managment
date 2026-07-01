@@ -2,6 +2,7 @@ const { getBearerToken, verifySessionToken } = require("./_auth");
 const {
   bookingCancelledMessage,
   bookingCreatedMessage,
+  recurringCreatedMessage,
   sendTelegramMessage,
 } = require("./_telegram");
 
@@ -72,5 +73,10 @@ async function notifyTelegram(payload, userEmail) {
   }
   if (payload.action === "cancel" && payload.booking) {
     await sendTelegramMessage(bookingCancelledMessage(payload.booking, userEmail));
+  }
+  if (payload.action === "createRecurring" && payload.template) {
+    await sendTelegramMessage(
+      recurringCreatedMessage({ ...payload.template, ownerEmail: userEmail }),
+    );
   }
 }

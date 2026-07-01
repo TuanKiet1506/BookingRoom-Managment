@@ -7,6 +7,18 @@ const TIME_SLOTS = Array.from({ length: 28 }, (_, index) => {
     totalMinutes % 60,
   ).padStart(2, "0")}`;
 });
+// Materialise recurring meetings this many weeks ahead in localStorage mode.
+// Mirrors RECURRING_WEEKS_AHEAD in google-apps-script.gs.
+const RECURRING_WEEKS_AHEAD = 8;
+const WEEKDAY_LABELS = [
+  "Chủ nhật",
+  "Thứ Hai",
+  "Thứ Ba",
+  "Thứ Tư",
+  "Thứ Năm",
+  "Thứ Sáu",
+  "Thứ Bảy",
+];
 
 const STORAGE = {
   user: "meetinghub.user",
@@ -67,6 +79,8 @@ const els = {
   ownerInput: document.querySelector("#ownerInput"),
   startInput: document.querySelector("#startInput"),
   endInput: document.querySelector("#endInput"),
+  recurringInput: document.querySelector("#recurringInput"),
+  recurringHint: document.querySelector("#recurringHint"),
   searchInput: document.querySelector("#searchInput"),
   settingsForm: document.querySelector("#settingsForm"),
   scriptUrl: document.querySelector("#scriptUrl"),
@@ -160,6 +174,7 @@ function bindEvents() {
   els.openBookingModal.addEventListener("click", openBookingModal);
   els.exportExcelButton.addEventListener("click", exportCurrentBookings);
   els.bookingForm.addEventListener("submit", handleCreateBooking);
+  els.dateInput.addEventListener("change", updateRecurringHint);
   els.roomFilter.addEventListener("change", () => {
     state.roomFilter = els.roomFilter.value;
     renderCalendar();
@@ -271,9 +286,19 @@ async function handleCreateBooking(event) {
     return;
   }
 
+  const recurring = form.get("recurring") === "on";
+
   try {
-    await saveBooking(booking);
-    pushActivity("Đặt lịch", telegramPreview("dat", booking));
+    if (recurring) {
+      await saveRecurringBooking(booking);
+      pushActivity(
+        "Đặt lịch lặp lại",
+        `Lặp lại ${WEEKDAY_LABELS[weekdayOf(booking.date)]} hàng tuần: ${booking.topic} (${booking.startTime}-${booking.endTime}).`,
+      );
+    } else {
+      await saveBooking(booking);
+      pushActivity("Đặt lịch", telegramPreview("dat", booking));
+    }
     closeBookingModal();
     state.selectedDate = booking.date;
     await refreshBookings();
@@ -318,7 +343,17 @@ function openBookingModal() {
   els.startInput.value = "09:00";
   els.endInput.value = "10:00";
   els.bookingError.textContent = "";
+  updateRecurringHint();
   els.bookingModal.classList.remove("hidden");
+}
+
+function updateRecurringHint() {
+  if (!els.recurringHint) return;
+  const dateValue = els.dateInput.value || state.selectedDate;
+  const label = WEEKDAY_LABELS[weekdayOf(dateValue)] || "";
+  els.recurringHint.textContent = label
+    ? `Tự tạo lịch vào ${label} hàng tuần cho ${RECURRING_WEEKS_AHEAD} tuần tới (tự gia hạn).`
+    : "";
 }
 
 function closeBookingModal() {
@@ -526,6 +561,65 @@ async function saveBooking(booking) {
     return;
   }
   await sheetRequest({ action: "create", booking, userEmail: state.user });
+}
+
+async function saveRecurringBooking(booking) {
+  const template = {
+    weekday: isoWeekday(booking.date),
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    room: booking.room,
+    topic: booking.topic,
+    note: booking.note,
+    ownerEmail: state.user,
+  };
+
+  if (!canUseGoogleSheet()) {
+    const occurrences = generateLocalRecurring(booking);
+    const stored = loadJSON(STORAGE.bookings, []);
+    const merged = [...stored, ...occurrences].sort(sortBookings);
+    state.bookings = merged;
+    localStorage.setItem(STORAGE.bookings, JSON.stringify(merged));
+    return;
+  }
+
+  await sheetRequest({
+    action: "createRecurring",
+    template,
+    userEmail: state.user,
+  });
+}
+
+// localStorage fallback: expand a weekly booking into the next few weeks,
+// skipping any slot that already conflicts locally.
+function generateLocalRecurring(booking) {
+  const stored = loadJSON(STORAGE.bookings, []);
+  const active = stored.filter((item) => item.status !== "CANCELLED");
+  const occurrences = [];
+  const firstDate = parseDateInput(booking.date);
+
+  for (let week = 0; week < RECURRING_WEEKS_AHEAD; week += 1) {
+    const date = new Date(firstDate.getTime());
+    date.setDate(date.getDate() + week * 7);
+    const dateValue = toDateInputValue(date);
+    if (dateValue < todayISO()) continue;
+
+    const conflict = [...active, ...occurrences].some(
+      (item) =>
+        item.date === dateValue &&
+        booking.startTime < item.endTime &&
+        booking.endTime > item.startTime,
+    );
+    if (conflict) continue;
+
+    occurrences.push({
+      ...booking,
+      id: crypto.randomUUID(),
+      date: dateValue,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  return occurrences;
 }
 
 async function cancelBooking(booking) {
@@ -781,6 +875,17 @@ function sortBookings(a, b) {
 
 function todayISO() {
   return toDateInputValue(new Date());
+}
+
+// JS weekday index (0=Sun..6=Sat) for a YYYY-MM-DD string.
+function weekdayOf(dateValue) {
+  return parseDateInput(dateValue).getDay();
+}
+
+// ISO weekday (1=Mon..7=Sun) to match the Apps Script recurring template format.
+function isoWeekday(dateValue) {
+  const day = weekdayOf(dateValue);
+  return day === 0 ? 7 : day;
 }
 
 function parseDateInput(value) {
