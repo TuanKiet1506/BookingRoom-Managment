@@ -15,9 +15,11 @@ const TELEGRAM_COMMANDS = [
   { command: "today", description: "Xem lịch họp hôm nay" },
   { command: "tomorrow", description: "Xem lịch họp ngày mai" },
   { command: "upcoming", description: "Xem lịch sắp diễn ra" },
+  { command: "recurring", description: "Xem lịch lặp hàng tuần" },
   { command: "id", description: "Xem Chat ID" },
   { command: "book", description: "Đặt lịch họp mới" },
   { command: "cancel", description: "Hủy lịch họp sắp tới" },
+  { command: "stopseries", description: "Ngừng một lịch lặp hàng tuần" },
   { command: "confirm", description: "Xác nhận thao tác" },
   { command: "abort", description: "Hủy thao tác" },
 ];

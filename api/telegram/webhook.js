@@ -2,16 +2,30 @@ const { randomUUID } = require("crypto");
 const { getBotState, setBotState, clearBotState } = require("../_kv");
 const {
   cancelBooking,
+  cancelRecurringTemplate,
   createBooking,
+  createRecurringTemplate,
   listBookings,
   listBookingsByDates,
+  listRecurringTemplates,
 } = require("../_appsScript");
 const {
   bookingCancelledMessage,
   bookingCreatedMessage,
+  recurringCreatedMessage,
   sendTelegramMessage,
   setTelegramCommands,
 } = require("../_telegram");
+
+const WEEKDAY_LABELS = {
+  1: "Thứ Hai",
+  2: "Thứ Ba",
+  3: "Thứ Tư",
+  4: "Thứ Năm",
+  5: "Thứ Sáu",
+  6: "Thứ Bảy",
+  7: "Chủ nhật",
+};
 
 const TIME_ZONE = "Asia/Saigon";
 const ADMIN_EMAIL = "admin@khomes.com.vn";
@@ -94,9 +108,11 @@ function parseCommand(text) {
     "/today",
     "/tomorrow",
     "/upcoming",
+    "/recurring",
     "/id",
     "/book",
     "/cancel",
+    "/stopseries",
     "/confirm",
     "/abort",
   ].includes(command)) {
@@ -110,11 +126,13 @@ async function handleCommand(command, chatId) {
   if (command === "/id") return `Chat ID: ${chatId}`;
   if (command === "/book") return startBookFlow(chatId);
   if (command === "/cancel") return startCancelFlow(chatId);
+  if (command === "/stopseries") return startStopSeriesFlow(chatId);
   if (command === "/confirm") return confirmFlow(chatId);
   if (command === "/abort") return abortFlow(chatId);
   if (command === "/today") return bookingsForDateMessage("Lịch họp hôm nay", todayISO());
   if (command === "/tomorrow") return bookingsForDateMessage("Lịch họp ngày mai", addDays(todayISO(), 1));
   if (command === "/upcoming") return upcomingMessage();
+  if (command === "/recurring") return recurringListMessage();
   return helpMessage();
 }
 
@@ -125,8 +143,10 @@ function helpMessage() {
     "/today - Xem lịch họp hôm nay",
     "/tomorrow - Xem lịch họp ngày mai",
     "/upcoming - Xem lịch sắp diễn ra",
+    "/recurring - Xem lịch lặp hàng tuần",
     "/book - Đặt lịch họp mới",
     "/cancel - Hủy lịch họp sắp tới",
+    "/stopseries - Ngừng một lịch lặp hàng tuần",
     "/confirm - Xác nhận thao tác đang làm",
     "/abort - Hủy thao tác đang làm",
     "/help - Xem hướng dẫn sử dụng bot",
@@ -182,6 +202,7 @@ async function handleConversation(chatId, text) {
   if (!state) return "";
   if (state.flow === "book") return continueBookFlow(chatId, state, text);
   if (state.flow === "cancel") return continueCancelFlow(chatId, state, text);
+  if (state.flow === "stopseries") return continueStopSeriesFlow(chatId, state, text);
   return "";
 }
 
@@ -201,11 +222,33 @@ async function continueBookFlow(chatId, state, text) {
     }
 
     const booking = buildBooking(result.booking);
+    await setBotState(chatId, { ...state, step: "repeat", booking });
+    return [
+      "Lịch này có lặp lại hàng tuần không?",
+      "",
+      formatBookingSummary(booking),
+      "",
+      `Gõ "có" để lặp lại mỗi ${WEEKDAY_LABELS[isoWeekdayOf(booking.date)]} hàng tuần, hoặc "không" để đặt một lần.`,
+    ].join("\n");
+  }
+
+  if (state.step === "repeat") {
+    const answer = normalizeText(value);
+    const yes = ["co", "có", "yes", "y", "1", "uh", "u"].includes(answer);
+    const no = ["khong", "ko", "no", "n", "0", "-"].includes(answer);
+    if (!yes && !no) {
+      return 'Bạn gõ "có" (lặp lại hàng tuần) hoặc "không" (đặt một lần) giúp mình nhé.';
+    }
+    const booking = { ...state.booking, recurring: yes };
     await setBotState(chatId, { ...state, step: "confirm", booking });
+    const repeatLine = yes
+      ? `Lặp lại: mỗi ${WEEKDAY_LABELS[isoWeekdayOf(booking.date)]} hàng tuần`
+      : "Lặp lại: không";
     return [
       "Xác nhận đặt lịch?",
       "",
       formatBookingSummary(booking),
+      repeatLine,
       "",
       "Gõ /confirm để xác nhận hoặc /abort để hủy thao tác.",
     ].join("\n");
@@ -281,6 +324,75 @@ async function continueCancelFlow(chatId, state, text) {
   return "";
 }
 
+async function recurringListMessage() {
+  const templates = (await listRecurringTemplates()).filter(
+    (template) => template.active,
+  );
+  if (templates.length === 0) {
+    return "Chưa có lịch lặp hàng tuần nào.";
+  }
+  return [
+    "Lịch lặp hàng tuần đang bật",
+    "",
+    templates.map((template, index) => `${index + 1}. ${templateLine(template)}`).join("\n"),
+  ].join("\n");
+}
+
+async function startStopSeriesFlow(chatId) {
+  const templates = (await listRecurringTemplates()).filter(
+    (template) => template.active,
+  );
+  if (templates.length === 0) {
+    await clearBotState(chatId);
+    return "Không có lịch lặp hàng tuần nào để ngừng.";
+  }
+
+  await setBotState(chatId, {
+    flow: "stopseries",
+    step: "choose",
+    options: templates,
+    createdAt: new Date().toISOString(),
+  });
+
+  return [
+    "Bạn muốn ngừng lịch lặp nào?",
+    "",
+    templates.map((template, index) => `${index + 1}. ${templateLine(template)}`).join("\n"),
+    "",
+    "Gõ số thứ tự để chọn, ví dụ: 1",
+    "Hoặc gõ /abort để thoát.",
+  ].join("\n");
+}
+
+async function continueStopSeriesFlow(chatId, state, text) {
+  const value = String(text || "").trim();
+  if (state.step === "choose") {
+    const index = Number(value) - 1;
+    const template = state.options?.[index];
+    if (!template) return "Mình chưa thấy số thứ tự hợp lệ. Bạn gõ số trong danh sách, ví dụ: 1";
+
+    await setBotState(chatId, { ...state, step: "confirm", template });
+    return [
+      "Xác nhận ngừng lịch lặp này?",
+      "",
+      templateLine(template),
+      "",
+      "Các buổi trong tương lai sẽ bị hủy, lịch đã qua vẫn được giữ.",
+      "",
+      "Gõ /confirm để xác nhận hoặc /abort để hủy thao tác.",
+    ].join("\n");
+  }
+  if (state.step === "confirm") {
+    return "Bạn gõ /confirm để xác nhận hoặc /abort để hủy thao tác nhé.";
+  }
+  return "";
+}
+
+function templateLine(template) {
+  const weekday = WEEKDAY_LABELS[Number(template.weekday)] || "?";
+  return `${weekday} hàng tuần ${template.startTime || ""} - ${template.endTime || ""} | ${template.topic || ""}`;
+}
+
 async function confirmFlow(chatId) {
   const state = await getBotState(chatId);
   if (!state) return "Không có thao tác nào đang chờ xác nhận.";
@@ -288,6 +400,23 @@ async function confirmFlow(chatId) {
 
   if (state.flow === "book" && state.booking) {
     const booking = { ...state.booking, ownerEmail: ADMIN_EMAIL };
+
+    if (booking.recurring) {
+      const template = {
+        weekday: isoWeekdayOf(booking.date),
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        room: booking.room,
+        topic: booking.topic,
+        note: booking.note,
+        ownerEmail: ADMIN_EMAIL,
+      };
+      await createRecurringTemplate(template, ADMIN_EMAIL);
+      await clearBotState(chatId);
+      notifyDefaultGroupIfNeeded(chatId, recurringCreatedMessage(template)).catch(console.error);
+      return `Đã tạo lịch lặp hàng tuần.\n\n${templateLine(template)}`;
+    }
+
     await createBooking(booking, ADMIN_EMAIL);
     await clearBotState(chatId);
     // Fire-and-forget group notification to keep response time under Vercel's 10s cap.
@@ -300,6 +429,15 @@ async function confirmFlow(chatId) {
     await clearBotState(chatId);
     notifyDefaultGroupIfNeeded(chatId, bookingCancelledMessage(state.booking, ADMIN_EMAIL)).catch(console.error);
     return `Đã hủy lịch thành công.\n\n${formatBookingSummary(state.booking)}`;
+  }
+
+  if (state.flow === "stopseries" && state.template) {
+    const result = await cancelRecurringTemplate(state.template.id, ADMIN_EMAIL);
+    await clearBotState(chatId);
+    const count = result?.cancelledOccurrences ?? 0;
+    const message = `Đã ngừng lịch lặp hàng tuần.\n\n${templateLine(state.template)}\nĐã hủy ${count} buổi sắp tới.`;
+    notifyDefaultGroupIfNeeded(chatId, message).catch(console.error);
+    return message;
   }
 
   return "Thao tác hiện tại chưa sẵn sàng để xác nhận.";
@@ -512,6 +650,13 @@ function addDays(date, days) {
   const value = new Date(`${date}T00:00:00Z`);
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
+}
+
+// ISO weekday (1=Mon..7=Sun) from a YYYY-MM-DD string, matching the format
+// used by recurring templates in google-apps-script.gs.
+function isoWeekdayOf(date) {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay(); // 0=Sun..6=Sat
+  return day === 0 ? 7 : day;
 }
 
 function formatDate(value) {
