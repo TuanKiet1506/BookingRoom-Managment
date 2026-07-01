@@ -100,6 +100,45 @@ Cột dữ liệu được tạo:
 - Apps Script chuẩn hóa ngày về `YYYY-MM-DD` và giờ về `HH:mm` để lịch vừa lưu
   xong hiển thị lại đúng trên giao diện.
 - Có nút xuất file CSV mở được bằng Excel cho lịch đang hiển thị.
+- Đặt lịch lặp lại hàng tuần (recurring) tự sinh các buổi cho nhiều tuần tới,
+  tự gia hạn qua trigger hằng ngày (xem mục "Lịch lặp lại hàng tuần").
+
+## Lịch lặp lại hàng tuần (recurring)
+
+Ngoài đặt lịch đơn lẻ, hệ thống hỗ trợ lịch lặp lại mỗi tuần vào một thứ cố
+định (ví dụ 11:00 thứ Hai hàng tuần). Cách hoạt động:
+
+- Mỗi lịch lặp được lưu thành một *template* trong tab `RecurringTemplates`.
+- Apps Script tự sinh các buổi cụ thể cho `RECURRING_WEEKS_AHEAD` tuần tới
+  (mặc định 8 tuần) vào tab `Bookings`. Vì là booking bình thường nên vẫn được
+  chống trùng giờ, nhắc Telegram trước 1 giờ và hủy như lịch thường.
+- Trigger chạy hằng ngày sẽ "gia hạn" cửa sổ này, nên luôn có sẵn ~8 tuần phía
+  trước mà không bao giờ cạn.
+- Mỗi buổi có `id` ổn định `rec-<templateId>-<ngày>` nên chạy lại không tạo
+  trùng; nếu người dùng hủy một buổi thì buổi đó không bị sinh lại.
+
+Tạo lịch lặp trên web: mở **Đặt lịch mới**, tick **"Lặp lại hàng tuần"** rồi xác
+nhận (thứ trong tuần lấy theo ngày đang chọn).
+
+Tạo sẵn 4 lịch cố định qua Apps Script (chạy một lần trong trình soạn thảo):
+
+```
+seedDefaultRecurringTemplates()
+```
+
+Hàm này thêm và sinh lịch cho:
+
+| Thứ | Giờ | Chủ đề |
+| --- | --- | --- |
+| Thứ Hai | 11:00–12:00 | Team Project B2B |
+| Thứ Ba | 10:00–11:00 | Team Finance |
+| Thứ Ba | 11:00–12:00 | Team KOL |
+| Thứ Ba | 14:00–15:00 | Team Khoá Bosch |
+
+Sau khi cập nhật file `google-apps-script.gs`, dán lại toàn bộ vào Apps Script,
+chạy `setupMeetingSheet` một lần (tạo tab `RecurringTemplates` + trigger hằng
+ngày), rồi deploy lại Web App. Trigger cũ tên `annualCleanupBookings` vẫn dùng
+được vì hàm này giờ đảm nhận cả dọn dữ liệu đầu năm lẫn gia hạn lịch lặp.
 
 ## Deploy Vercel
 

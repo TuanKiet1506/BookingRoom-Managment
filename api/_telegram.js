@@ -144,11 +144,37 @@ function bookingReminderMessage(booking) {
   return `Nhắc lịch phòng họp sau 1 giờ\n\n${formatBookingLine(booking)}`;
 }
 
+// weekday: ISO number 1 (Mon) .. 7 (Sun)
+const WEEKDAY_LABELS_VI = {
+  1: "Thứ Hai",
+  2: "Thứ Ba",
+  3: "Thứ Tư",
+  4: "Thứ Năm",
+  5: "Thứ Sáu",
+  6: "Thứ Bảy",
+  7: "Chủ nhật",
+};
+
+function recurringCreatedMessage(template) {
+  const weekday = WEEKDAY_LABELS_VI[Number(template.weekday)] || "";
+  return [
+    "Đã tạo lịch họp lặp lại hàng tuần",
+    "",
+    `Phòng: ${template.room || "Phòng họp"}`,
+    `Lịch: ${weekday} hàng tuần`,
+    `Giờ: ${template.startTime || ""} - ${template.endTime || ""}`,
+    `Chủ đề: ${template.topic || ""}`,
+    `Người tạo: ${template.ownerEmail || ""}`,
+    template.note ? `Ghi chú: ${template.note}` : "",
+  ].filter(Boolean).join("\n");
+}
+
 module.exports = {
   TELEGRAM_COMMANDS,
   bookingCancelledMessage,
   bookingCreatedMessage,
   bookingReminderMessage,
+  recurringCreatedMessage,
   hasTelegramConfig,
   sendTelegramMessage,
   sendTelegramPhoto,
