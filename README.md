@@ -56,8 +56,10 @@ Các lệnh đang hỗ trợ:
 - `/today`
 - `/tomorrow`
 - `/upcoming`
-- `/book`
-- `/cancel`
+- `/recurring` — xem các lịch lặp hàng tuần đang bật
+- `/book` — có hỏi thêm "Lặp lại hàng tuần?" để tạo lịch lặp qua bot
+- `/cancel` — hủy một buổi lẻ (kể cả buổi thuộc lịch lặp)
+- `/stopseries` — ngừng cả một chuỗi lịch lặp (hủy các buổi tương lai)
 - `/confirm`
 - `/abort`
 

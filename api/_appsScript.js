@@ -77,11 +77,39 @@ async function cancelBooking(id, userEmail) {
   return callAppsScript({ action: "cancel", id, userEmail }, 1, APPS_SCRIPT_SHEET_TIMEOUT_MS);
 }
 
+async function listRecurringTemplates() {
+  const result = await callAppsScript(
+    { action: "listRecurring" },
+    1,
+    APPS_SCRIPT_SHEET_TIMEOUT_MS,
+  );
+  return result.templates || [];
+}
+
+async function createRecurringTemplate(template, userEmail) {
+  return callAppsScript(
+    { action: "createRecurring", template, userEmail },
+    1,
+    APPS_SCRIPT_SHEET_TIMEOUT_MS,
+  );
+}
+
+async function cancelRecurringTemplate(id, userEmail) {
+  return callAppsScript(
+    { action: "cancelRecurring", id, userEmail },
+    1,
+    APPS_SCRIPT_SHEET_TIMEOUT_MS,
+  );
+}
+
 module.exports = {
   callAppsScript,
   cancelBooking,
+  cancelRecurringTemplate,
   createBooking,
+  createRecurringTemplate,
   listBookings,
   listBookingsByDates,
+  listRecurringTemplates,
   markTelegramStatus,
 };
